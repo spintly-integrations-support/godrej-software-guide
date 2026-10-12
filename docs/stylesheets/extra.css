@@ -1,0 +1,316 @@
+/* Wider content column — the flow diagrams and comparison tables need room. */
+.md-grid {
+  max-width: 68rem;
+}
+
+/* Tables carry the side-by-side comparisons, so tighten them up. Zensical emits
+   a bare <table> with no scroll wrapper, so the table is its own scroll
+   container — that way a long row never gets clipped. */
+.md-typeset table:not([class]) {
+  display: block;
+  overflow-x: auto;
+  font-size: 0.72rem;
+}
+
+/* Identifiers, endpoints and headers stay on one line — a member name or a URL
+   path split mid-token is easy to misread. Anything too wide to fit scrolls via
+   the rule above rather than being clipped. */
+.md-typeset table:not([class]) td code,
+.md-typeset table:not([class]) th {
+  white-space: nowrap;
+}
+
+.md-typeset table:not([class]) td {
+  vertical-align: top;
+}
+
+/* Mermaid diagrams sit better with a little air around them. */
+.md-typeset .mermaid {
+  margin: 1.2em 0;
+}
+
+/* --- Sequence diagram palette ---------------------------------------------
+   One colour per participant, applied by javascripts/diagrams.js after mermaid
+   renders. Each participant keeps its colour on every page, so the palette is
+   defined once here rather than per diagram.
+
+   Two sets, because the site has a light and a dark palette: the light values
+   are darkened so they hold contrast on white, the dark values lightened for
+   the same reason. Hues match across the pair, so a participant reads as the
+   same colour either way.
+
+   Adding a participant means adding a --seq-* here and a SLOT entry in
+   diagrams.js. Miss the SLOT entry and it falls back to a spare colour rather
+   than breaking.                                                            */
+
+:root {
+  --seq-user:      #64748b;  /* slate   — the person, deliberately neutral */
+  --seq-app:       #0891b2;  /* cyan    */
+  --seq-backend:   #16a34a;  /* green   */
+  --seq-spintly:   #e11d48;  /* rose    */
+  --seq-kafka:     #0f766e;  /* teal    — pushed green-ward to clear App's cyan */
+  --seq-keycloak:  #c026d3;  /* fuchsia */
+  --seq-oauth:     #7c3aed;  /* violet  */
+  --seq-access:    #2563eb;  /* blue    */
+  --seq-config:    #ca8a04;  /* amber   — kept clear of Firebase's orange */
+  --seq-hardware:  #4d7c0f;  /* lime    — locks, gateways and accessories */
+  --seq-firebase:  #ea580c;  /* orange  */
+  --seq-filestore: #4f46e5;  /* indigo  */
+  --seq-invited:   #4f46e5;  /* indigo  — never shares a diagram with the file store */
+  --seq-assistant: #db2777;  /* pink    */
+
+  /* Fallbacks for a participant with no slot of its own. Kept well away from
+     App and Binaryveda's backend, which are in nearly every diagram. */
+  --seq-spare1: #a16207;
+  --seq-spare2: #9333ea;
+  --seq-spare3: #be123c;
+  --seq-spare4: #475569;
+}
+
+[data-md-color-scheme="slate"] {
+  --seq-user:      #94a3b8;
+  --seq-app:       #22d3ee;
+  --seq-backend:   #4ade80;
+  --seq-spintly:   #fb7185;
+  --seq-kafka:     #5eead4;
+  --seq-keycloak:  #e879f9;
+  --seq-oauth:     #a78bfa;
+  --seq-access:    #60a5fa;
+  --seq-config:    #fbbf24;
+  --seq-hardware:  #a3e635;
+  --seq-firebase:  #fb923c;
+  --seq-filestore: #818cf8;
+  --seq-invited:   #818cf8;
+  --seq-assistant: #f472b6;
+
+  --seq-spare1: #facc15;
+  --seq-spare2: #c4b5fd;
+  --seq-spare3: #fda4af;
+  --seq-spare4: #cbd5e1;
+}
+
+/* The legend under a diagram that uses an opt, alt, par or loop block. Written
+   by diagrams.js from the blocks that diagram actually contains, so a diagram
+   using none of them gets nothing at all.
+
+   The rule down the left ties it to the diagram above it, and the tag is drawn
+   to echo the label mermaid puts in the corner of the block it explains. */
+.md-typeset .seq-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+  margin: -0.4em 0 1.6em;
+  padding: 0.1em 0 0.1em 0.9em;
+  border-left: 2px solid var(--md-default-fg-color--lightest);
+  font-size: 0.68rem;
+  line-height: 1.7;
+  color: var(--md-default-fg-color--light);
+}
+
+.md-typeset .seq-legend > span {
+  display: block;
+  text-indent: -2.9em;
+  padding-left: 2.9em;
+}
+
+.md-typeset .seq-legend .seq-tag {
+  display: inline-block;
+  min-width: 2em;
+  margin-right: 0.7em;
+  padding: 0 0.35em;
+  border: 1px solid var(--md-default-fg-color--lighter);
+  border-radius: 0.15em;
+  font-family: var(--md-code-font-family);
+  font-size: 0.92em;
+  font-weight: 700;
+  text-align: center;
+  text-indent: 0;
+  color: var(--md-default-fg-color);
+}
+
+/* Swatches for the participant table on "Reading these pages". Drawn the same
+   way the diagrams draw a participant box: the colour as a border, over a wash
+   of the same colour. */
+.md-typeset .p-key {
+  display: inline-block;
+  width: 0.9em;
+  height: 0.9em;
+  margin-right: 0.55em;
+  border: 2px solid var(--c, var(--md-default-fg-color--light));
+  border-radius: 0.15em;
+  background: color-mix(in srgb, var(--c, transparent) 22%, transparent);
+  vertical-align: -0.1em;
+}
+
+.md-typeset .p-user      { --c: var(--seq-user); }
+.md-typeset .p-app       { --c: var(--seq-app); }
+.md-typeset .p-backend   { --c: var(--seq-backend); }
+.md-typeset .p-spintly   { --c: var(--seq-spintly); }
+.md-typeset .p-kafka     { --c: var(--seq-kafka); }
+.md-typeset .p-keycloak  { --c: var(--seq-keycloak); }
+.md-typeset .p-oauth     { --c: var(--seq-oauth); }
+.md-typeset .p-access    { --c: var(--seq-access); }
+.md-typeset .p-config    { --c: var(--seq-config); }
+.md-typeset .p-hardware  { --c: var(--seq-hardware); }
+.md-typeset .p-firebase  { --c: var(--seq-firebase); }
+.md-typeset .p-filestore { --c: var(--seq-filestore); }
+
+/* --- SDK colour key -------------------------------------------------------
+   Swatches must stay in sync with the classDef strokes in the flow diagrams:
+   OAuth #8b5cf6, Access #3b82f6, Config #f59e0b, failure #ef4444.          */
+
+.md-typeset .sdk-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.4rem;
+  margin: 0.9em 0 1.4em;
+  font-size: 0.72rem;
+  line-height: 1.6;
+}
+
+.md-typeset .sdk-key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+}
+
+.md-typeset .sdk-key span::before {
+  content: "";
+  width: 1.1rem;
+  height: 0.72rem;
+  border: 2px solid var(--md-default-fg-color--light);
+  border-radius: 0.12rem;
+  background: var(--md-code-bg-color);
+}
+
+.md-typeset .sdk-key .k-oauth::before  { border-color: #8b5cf6; }
+.md-typeset .sdk-key .k-access::before { border-color: #3b82f6; }
+.md-typeset .sdk-key .k-config::before { border-color: #f59e0b; }
+.md-typeset .sdk-key .k-fail::before {
+  border-color: #ef4444;
+  border-style: dashed;
+}
+.md-typeset .sdk-key .k-flow::before {
+  border-radius: 0.36rem;
+}
+
+/* --- Screen strips --------------------------------------------------------
+   The app screens for one step of a flow, laid out left to right in the order
+   the user meets them, each with a caption saying what is happening on it. A
+   strip sits above the diagram for its step, so the reader sees the screens
+   first and then the calls running behind them.
+
+   The captures are phone screens, so they are tall and narrow. The width set
+   here is what fits a whole step's worth on one row on a laptop; they wrap on
+   anything narrower. Each one links to the full size file, because some of
+   the text on a screen is too small to read at strip size.
+
+   Files live in docs/images/<page-name>/.                                   */
+
+/* A grid rather than a flex row, so a screen comes out the same size on every
+   strip whether that step has one screen or six. */
+.md-typeset .screens {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  align-items: start;
+  gap: 1.5rem 1.1rem;
+  margin: 1.2em 0 1.8em;
+}
+
+/* The theme centres a figure and italicises its caption, which is right for a
+   lone captioned image and wrong for a strip of them. Undone here. */
+.md-typeset .screens > figure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 0;
+  min-width: 0;
+  text-align: left;
+}
+
+/* Each figure spans an image row and a caption row of the parent grid, so the
+   captions in a row start on the same line however tall each screen is. */
+@supports (grid-template-rows: subgrid) {
+  .md-typeset .screens > figure {
+    display: grid;
+    grid-row: span 2;
+    grid-template-rows: subgrid;
+  }
+}
+
+/* A screen is a light capture, so on the dark palette it needs a border to
+   stop it reading as a floating white block. */
+.md-typeset .screens img {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #fff;
+  border: 1px solid var(--md-default-fg-color--lighter);
+  border-radius: 0.4rem;
+}
+
+.md-typeset .screens a {
+  display: block;
+  line-height: 0;
+}
+
+.md-typeset .screens figcaption {
+  max-width: none;
+  margin: 0;
+  font-size: 0.62rem;
+  font-style: normal;
+  line-height: 1.6;
+  text-align: left;
+  color: var(--md-default-fg-color--light);
+}
+
+/* The first line of a caption names the screen; the rest says what it does. */
+/* An SDK member name is often wider than the column, so it has to break. Tighter
+   padding than the theme's default keeps the break tidy and stops the
+   punctuation after it being pushed onto a line of its own. */
+.md-typeset .screens figcaption code {
+  padding: 0 0.15em;
+  font-size: 0.9em;
+  overflow-wrap: anywhere;
+}
+
+/* Only the leading strong is the caption's title line. Bold used inside the
+   sentence after it has to stay inline, or it breaks the sentence in three. */
+.md-typeset .screens figcaption > strong:first-child {
+  display: block;
+  margin-bottom: 0.15rem;
+  font-weight: 700;
+  color: var(--md-default-fg-color);
+}
+
+/* A cropped dialog or sheet, rather than a whole screen. Sits on a wash so it
+   does not look like a screenshot that failed to load. */
+.md-typeset .screens > figure.crop img {
+  padding: 0.7rem 0.5rem;
+  background: var(--md-default-fg-color--lightest);
+}
+
+/* --- Change badges ----------------------------------------------------------
+   Added for the multi-lock change notes. Each step heading on a flow page
+   carries one, so a reader can skim a page for what they have to touch.     */
+
+.md-typeset .chg {
+  display: inline-block;
+  margin-left: 0.5em;
+  padding: 0.05em 0.5em;
+  border-radius: 0.2em;
+  font-size: 0.62em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: 0.2em;
+  border: 1px solid currentColor;
+}
+
+.md-typeset .chg-new       { color: #e11d48; }
+.md-typeset .chg-changed   { color: #ca8a04; }
+.md-typeset .chg-unchanged { color: var(--md-default-fg-color--light); }
+
+[data-md-color-scheme="slate"] .md-typeset .chg-new     { color: #fb7185; }
+[data-md-color-scheme="slate"] .md-typeset .chg-changed { color: #fbbf24; }
