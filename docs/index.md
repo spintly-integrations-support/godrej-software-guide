@@ -45,7 +45,7 @@ Asha opens both doors from the app and with her fingerprint, but each door has i
 | Area | Today | After |
 |---|---|---|
 | Locks per property | One | Many |
-| Credentials per person | One | Many: one app credential, plus as many passcode, fingerprint and card credentials as you need |
+| Credentials per person | One | Many: one app credential and one fingerprint credential, plus as many passcode and card credentials as you need |
 | How access is granted | To the person, on a lock | To a **credential**, on a lock |
 | Passcodes | One per person, valid on every lock | One per credential. Per lock, or shared, as you choose |
 | Sync signals | `resource_alive` for the organisation, `site_create` for the property | `resource_alive` for **every** resource: organisation, site, network and access point |

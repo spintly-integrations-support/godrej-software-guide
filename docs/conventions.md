@@ -34,7 +34,7 @@ Inside a diagram, an arrow whose label begins with **NEW** or **CHANGED** is the
 
 Two words carry most of the change.
 
-**Credential.** Something a person opens a door with: app access, a passcode, a fingerprint or a card. Each has a `credentialId`. A person holds exactly **one app credential**, and any number of the others.
+**Credential.** Something a person opens a door with: app access, a passcode, a fingerprint or a card. Each has a `credentialId`. A person holds exactly **one app credential** and **one fingerprint credential**, and any number of passcode and card credentials.
 
 **Binding.** A credential is *bound* to a lock when it may open that lock. Binding is what replaces today's "give the user permissions on the lock". You bind with one of two calls, depending on which side you start from:
 

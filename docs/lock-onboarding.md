@@ -191,7 +191,7 @@ sequenceDiagram
 
 `ScannedBleDevice.getSerialNumber()` can be **null**. Skip such entries rather than sending them to `listLockData`.
 
-A lock-only scan, `startConfigurableDevicesScan(SpintlyDeviceType.LOCK, callback)`, is planned. When it ships, the gateway filtering both apps do today is no longer needed.
+A lock-only scan, `startConfigurableDevicesScan(SpintlyDeviceType.LOCK, callback)`, is an open point in the SDK. When it ships, the gateway filtering both apps do today is no longer needed.
 
 ## 4. Customise the lock <span class="chg chg-changed">changed</span> { #4-customise-the-lock data-toc-label="4. Customise the lock" }
 
@@ -290,12 +290,14 @@ sequenceDiagram
     C->>L: Read it off the lock
     A->>B: getLockFirmwareUpdate(lockId:platform:)
     opt If the lock is behind
-        A->>C: CHANGED: updateToFirmwareVersion(pdSwVer, FirmwareUpdateCallback)
+        A->>C: CHANGED: updateToFirmwareVersion(updateToVer, FirmwareUpdateCallback)
         C->>L: Update it over BLE
     end
 ```
 
-If you always want a minimum version during onboarding, `configureDeviceWithMinimumFirmware(serialNumber, minVersion, callback)` does steps 5 and 6 in one call.
+`updateToVer` is `getPdSwVer()` of the version picked from `firmwareUpdate`'s list. Until the next major SDK version this call is still named `updateToFwVersion`, with the same arguments.
+
+If you always want a minimum version during onboarding, `configureDeviceWithMinimumFirmware(serialNumber, minimumFirmwareVersion, callback)` does steps 5 and 6 in one call. `minimumFirmwareVersion` is an `int` in the same form as `getPdSwVer()`, for example `66816` for `01.05.00`.
 
 ## 7. Master passcode <span class="chg chg-changed">changed</span> { #7-master-passcode data-toc-label="7. Master passcode" }
 
@@ -306,8 +308,15 @@ sequenceDiagram
     participant C as Config SDK
     participant L as Lock hardware
     participant B as Binaryveda's backend
+    participant S as Spintly's servers
 
     U->>A: Choose a passcode
+    A->>B: Is this lock's passcode credential on the lock yet?
+    loop NEW: every 2 seconds, until it is applied
+        B->>S: GET /permissionManagementV3/v1/organisations/{orgId}/<br/>accessPoints/{accessPointId}/credential-permissions?accessorId={accessorId}
+        S-->>B: status of each binding: pending, applied or failed
+    end
+    B-->>A: Applied
     A->>C: CHANGED: generateMasterPasscode(serialNumber, credentialId, orgId,<br/>accessorId, oldPasscode, newPasscode, KeypadManagerCallback)
     C->>L: Write it over BLE
     L-->>C: Written
@@ -316,6 +325,8 @@ sequenceDiagram
 ```
 
 **`credentialId` is the passcode credential bound to this lock in step 4.** A credential that is not bound to this lock does not produce a working passcode.
+
+**Wait until that binding is `applied` before writing.** Step 4's binding reaches the lock in the background, and the SDK refuses a passcode for a credential that is not on the lock yet. Check it with the `GET` shown, as described in [When a binding reaches the lock](api-changes.md#when-a-binding-reaches-the-lock). By the time provisioning and firmware have finished it is usually already `applied`.
 
 **One member on both platforms.** iOS's `updateMasterPasscode` and Android's `generateMasterPasscode` become `generateMasterPasscode` on both. A duplicate passcode fails with **`14/4`** on both, so iOS no longer needs to read the error message.
 
@@ -327,7 +338,7 @@ Progress arrives as `CONNECTED`, `VERIFYING`, `SENDING_TO_DEVICE`, `SYNCING`.
 
 ### Fingerprint
 
-**Bind first, then enrol.** The fingerprint credential has to be on the lock before a finger is enrolled for it.
+**Bind first, wait until it is applied, then enrol.** The fingerprint credential has to be on the lock before a finger is enrolled for it. Enrolling while the binding is still `pending` fails with `6/46`.
 
 ```mermaid
 sequenceDiagram
@@ -342,6 +353,10 @@ sequenceDiagram
     opt If the fingerprint credential is not on this lock yet
         A->>B: Your mutation, before the enrolment
         B->>S: NEW: PATCH /permissionManagementV3/v1/organisations/{orgId}/<br/>accessors/{accessorId}/credentials/{credentialId}/permissions<br/>accessPointsToAdd: this lock
+        loop NEW: every 2 seconds, until it is applied
+            B->>S: GET .../accessPoints/{accessPointId}/credential-permissions?accessorId={accessorId}
+        end
+        B-->>A: Applied
     end
     A->>C: CHANGED: performFPEnrollmentOnDevice(serialNumber, credentialId, orgId,<br/>accessorId, templateName, 19, FingerprintManagerCallback)
     loop Each scan of the finger
@@ -351,9 +366,25 @@ sequenceDiagram
     C-->>A: Enrolled, or an error
 ```
 
-**`credentialId` is the person's fingerprint credential.** A person usually has one, bound to every lock they enrol a finger on.
+**`credentialId` is the person's fingerprint credential.** A person has exactly **one**, and it is reused on every lock: bind it to each lock they enrol a finger on.
 
-**The timeout drops to 19 seconds**, from 60. The SDK no longer needs `scanAndConnectFingerprintDevice` or `fingerprintClose()`.
+**Fingers are enrolled lock by lock.** A finger enrolled on one lock is stored on that lock only, and is not copied to the person's other locks. To use the same finger on a second lock, enrol it there as well. Each enrolment is a separate fingerprint (template) with its own `templateDataId` and door, so a person can choose which finger opens which lock.
+
+#### One fingerprint credential, many fingers { #one-fingerprint-credential-many-fingers }
+
+Unlike passcodes, a person never needs a second fingerprint credential. A passcode credential *is* its digits, so a different passcode on each lock needs a different credential. A fingerprint credential only ties the person's fingers to them. The fingers themselves are the enrolments, and each enrolment belongs to one lock. Everything a person can want from their fingerprints is done with the one credential:
+
+| The person wants | Do this |
+|---|---|
+| Different fingers on different locks | Enrol each finger on the lock it should open |
+| The same finger on several locks | Enrol it on each of those locks |
+| Stop one finger on one lock | Delete that fingerprint: `deleteFingerprintTemplatePermission(…, templateDataId, …)` |
+| Stop all fingerprints on one lock | Unbind the fingerprint credential from that lock. Every finger enrolled there stops opening it |
+| Different times on different locks | Give each lock its own schedule. A schedule covers everything the person has on that lock, fingerprints included |
+
+`credential/create` therefore does not create fingerprint credentials. Bind the one the person already has.
+
+**The timeout drops to 19 seconds**, from 60. ImageMatch fingerprint devices need a real `credentialId`, greater than 0. The SDK no longer needs `scanAndConnectFingerprintDevice` or `fingerprintClose()`.
 
 ### RFID
 
@@ -430,8 +461,8 @@ Config SDK v3, Android form. iOS is expected to match, see [Still to be confirme
 | Config | `stopScan(callback)` | Scan | Stop the scan |
 | Config | `configureDevice(serialNumber, SpintlyCompletionAndFirmwareUpdateStatusCallback)` | Provisioning | Provision the lock, updating old firmware first |
 | Config | `firmwareUpdate(serialNumber, callback)` | Firmware check | Read installed and available versions |
-| Config | `updateToFirmwareVersion(pdSwVer, FirmwareUpdateCallback)` | Firmware update | Push the new firmware |
-| Config | `configureDeviceWithMinimumFirmware(serialNumber, minVersion, callback)` | Provisioning, optional | Steps 5 and 6 in one call |
+| Config | `updateToFirmwareVersion(updateToVer, FirmwareUpdateCallback)` | Firmware update | Push the new firmware. `updateToFwVersion` until the next major SDK version |
+| Config | `configureDeviceWithMinimumFirmware(serialNumber, minimumFirmwareVersion, callback)` | Provisioning, optional | Steps 5 and 6 in one call |
 | Config | `generateMasterPasscode(serialNumber, credentialId, orgId, accessorId, oldPasscode, newPasscode, KeypadManagerCallback)` | Master passcode | Write the master passcode for this lock's passcode credential |
 | Config | `performFPEnrollmentOnDevice(serialNumber, credentialId, orgId, accessorId, templateName, 19, FingerprintManagerCallback)` | Fingerprint | Enrol a finger for the fingerprint credential |
 | Config | `assignCardToAccessorWithPermission(serialNumber, orgId, accessorId, accessPointId, CREDENTIAL_PERMISSION, true, CardManagerCallback)` | RFID | Read, assign and bind a card. `onCardAssigned(credentialId)` |

@@ -138,7 +138,7 @@ POST /permissionManagementV3/v1/organisations/{orgId}/accessors/{accessorId}/cre
 }
 ```
 
-Use it for a passcode that works only on one lock. It works for any type except the app credential: a person has exactly one, issued with the accessor. Cards are not created here, they are assigned at the lock by the Config SDK.
+Use it for a passcode that works only on one lock. It does not create app or fingerprint credentials: a person has exactly one of each, issued with the accessor or when the type is first enabled. Cards are not created here, they are assigned at the lock by the Config SDK.
 
 There is no limit on how many passcodes a person can hold. Apply any limit you want in your backend, before calling.
 
@@ -195,8 +195,8 @@ GET /permissionManagementV3/v1/organisations/{orgId}/accessors/{accessorId}/cred
     "credentialId": 700000001,
     "credentialType": "passcode",
     "accessPoints": [
-      { "accessPointId": 4567, "scheduleId": null },
-      { "accessPointId": 4568, "scheduleId": 88 }
+      { "accessPointId": 4567, "scheduleId": null, "status": "applied" },
+      { "accessPointId": 4568, "scheduleId": 88,   "status": "pending" }
     ]
   }
 }
@@ -217,8 +217,8 @@ GET /permissionManagementV3/v1/organisations/{orgId}/accessPoints/{accessPointId
   "message": {
     "accessPointId": 4567,
     "credentials": [
-      { "accessorId": 107968, "credentialId": 900000011, "credentialType": "mobile_ble_nfc", "scheduleId": null },
-      { "accessorId": 107968, "credentialId": 700000001, "credentialType": "passcode",       "scheduleId": null }
+      { "accessorId": 107968, "credentialId": 900000011, "credentialType": "mobile_ble_nfc", "scheduleId": null, "status": "applied" },
+      { "accessorId": 107968, "credentialId": 700000001, "credentialType": "passcode",       "scheduleId": null, "status": "pending" }
     ]
   }
 }
@@ -231,6 +231,22 @@ GET /permissionManagementV3/v1/organisations/{orgId}/accessPoints/{accessPointId
 ### When a binding reaches the lock
 
 `200` means Spintly has **recorded** the change. It then reaches the lock, and the person's app, in the background. It is usually quick, but do not treat the response as proof the lock has it.
+
+Both `GET` calls above return a `status` for each binding:
+
+| `status` | Meaning |
+|---|---|
+| `pending` | Recorded, still on its way to the lock |
+| `applied` | The lock and the person's app have it |
+| `failed` | It could not be applied, for example because the passcode clashes with another one already on that lock. Remove the binding, or bind a different credential |
+
+**Wait for `applied` before you write to the lock for that credential.** The Config SDK checks with Spintly before it writes a passcode or enrols a finger, and refuses while the credential is not yet on the lock (for a fingerprint, `6/46`). So, after binding a passcode or fingerprint credential to a lock:
+
+1. Call `GET …/accessPoints/{accessPointId}/credential-permissions?accessorId={accessorId}`.
+2. Find the entry for that `credentialId`. If it is `pending`, call again after a short wait, every 2 seconds as your `getLock` polling does.
+3. Once it is `applied`, call the SDK: `generateMasterPasscode`, `addUserPasscode` or `performFPEnrollmentOnDevice`. Call `passcode/generate` only then as well.
+
+A credential that was already on the lock, such as a passcode being changed in My Access, is already `applied`, so there is nothing to wait for.
 
 ### App access follows every binding
 

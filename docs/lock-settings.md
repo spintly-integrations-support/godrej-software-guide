@@ -149,6 +149,9 @@ sequenceDiagram
     S-->>B: NEW: a new credentialId
     B->>S: NEW: PATCH .../accessors/{accessorId}/credentials/{newCredentialId}/permissions<br/>accessPointsToAdd: this lock
     B->>S: NEW: PATCH .../accessors/{accessorId}/credentials/{oldCredentialId}/permissions<br/>accessPointsToRemove: this lock
+    loop NEW: until the new credential is applied
+        B->>S: GET .../accessPoints/{accessPointId}/credential-permissions?accessorId={accessorId}
+    end
     B-->>A: The new credentialId
     A->>C: addUserPasscode(serialNumber, newCredentialId, orgId, accessorId, passcode, callback)
     C->>L: Write it over BLE
@@ -176,12 +179,14 @@ sequenceDiagram
         A->>C: CHANGED: deleteFingerprintTemplatePermission(orgId, accessorId, templateDataId)
         Note right of C: The lock drops it the next time it syncs
     else Next to the lock
-        A->>C: NEW: deleteFingerprintTemplateOverBle(serialNumber, ...)
+        A->>C: NEW: deleteFingerprintTemplateOverBle(serialNumber, orgId, accessorId, templateDataId)
         C->>L: Remove it now
     end
 ```
 
 Your screen's notes, that the list "needs the phone near the lock" and that deleting "goes from the lock, not a server", are no longer true. The four-template cap on the lock is unchanged.
+
+**The list covers all of the person's locks.** Each fingerprint in it carries the `accessPointId` of the lock it was enrolled on, because a finger enrolled on one lock works only there. Show only the entries for the lock being viewed. Deleting one removes that fingerprint from its own lock and leaves the person's other locks alone. What each fingerprint action does is summed up in [One fingerprint credential, many fingers](lock-onboarding.md#one-fingerprint-credential-many-fingers).
 
 ### My Access: RFID cards
 
@@ -216,9 +221,9 @@ sequenceDiagram
 | Timeout alerts | `readTimeoutAlertSettings`, `updateTamperAlarmSettings`, `updatePrankAlarmSettings`, `updateDOTLSettings` | Same names, `(serialNumber, …)`. **3 to 30 seconds** |
 | Lock audio and door bell | `getCurrentLanguageAndDoorbellTone`, `updateVoicePackage`, `setDoorbellTone` | `getCurrentLanguageAndDoorbellTone`, `updateVoicePackage(serialNumber, fileLocation, fileHash, languages, selectedLanguage, tones, selectedTone, voiceUpdateTimeInSec, callback)`, **`updateDoorbellTone`** |
 
-!!! warning "Seconds or minutes"
+!!! warning "Seconds, not minutes"
 
-    The v3 SDK documents the timeout alerts in **seconds, 3 to 30**. Your page describes them in minutes. Which unit the lock uses is being confirmed, see [Still to be confirmed](pending.md).
+    The timeout alerts are in **seconds, 3 to 30**, both when written and when read back (`getTamperAlarmTimeout()`, `getPrankAlarmTimeout()` and `getDOTLTimeInterval()` all return seconds). Your page describes them in minutes, so check the labels and the values your screens send. A value outside 3 to 30 fails with `10/22` to `10/24`.
 
 A voice package is at most 220 KB, and its hash is MD5.
 
@@ -273,7 +278,7 @@ sequenceDiagram
 
 ### Once it is attached
 
-- **Firmware Update:** `firmwareUpdate(scannedBleDevice, callback)`, then `updateToFirmwareVersion`. A force update for factory-fresh beacons is also available.
+- **Firmware Update:** `firmwareUpdate(scannedBleDevice, callback)`, then `updateToFirmwareVersion`. A factory-fresh beacon first needs the force update to base firmware: `startDfuDevicesScan(callback)`, `firmwareUpdateForDfuBeacon(scannedBleDevice, callback)`, then `updateToFirmwareVersionForDfuBeacon(updateToVer, callback)`.
 - **Factory Reset:** biometric authentication, then `resetBeacon(scannedBleDevice, callback)`, then `removeBleRemote` or `removeVdpModule`.
 
 | Action | Today | Config SDK v3 |
@@ -297,7 +302,7 @@ sequenceDiagram
     A->>B: getLockFirmwareUpdate(lockId:platform:)
     A->>C: CHANGED: firmwareUpdate(serialNumber, callback)<br/>What this lock will take
     U->>A: Update
-    A->>C: CHANGED: updateToFirmwareVersion(pdSwVer, FirmwareUpdateCallback)
+    A->>C: CHANGED: updateToFirmwareVersion(updateToVer, FirmwareUpdateCallback)
     C->>L: Transfer it over BLE
     C-->>A: Progress, then done or an error
     A->>B: updateLockFirmwareStatus(lockId:firmwareType:)
@@ -481,7 +486,7 @@ Config SDK v3, Android form. All of them need `setAuthToken` and `initiateSdk()`
 | `generateMasterPasscode(serialNumber, credentialId, orgId, accessorId, oldPasscode, newPasscode, callback)` | My Access | Replace the owner's master passcode |
 | `getFingerprintPermissions(orgId, accessorId)` | My Access | List the person's fingerprints, from the server |
 | `deleteFingerprintTemplatePermission(orgId, accessorId, templateDataId)` | My Access | Delete one at the server. The lock drops it on its next sync |
-| `deleteFingerprintTemplateOverBle(serialNumber, …)` | My Access | Delete one from the lock now |
+| `deleteFingerprintTemplateOverBle(serialNumber, organisationId, targetAccessorId, templateDataId, callback)` | My Access | Delete one from the lock now, then the server. Open point in the SDK |
 | `readSoundSettings`, `updateLockSoundSettings` | Sound | `(serialNumber, …)` |
 | `readLEDIntensitySettings`, `updateLEDIntensitySettings` | Lights | `(serialNumber, …)` |
 | `readTimeoutAlertSettings`, `updateTamperAlarmSettings`, `updatePrankAlarmSettings`, `updateDOTLSettings` | Timeout Alerts | `(serialNumber, …)` |

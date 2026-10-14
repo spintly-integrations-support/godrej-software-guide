@@ -153,6 +153,7 @@ sequenceDiagram
     B->>S: POST /permissionManagementV3/v1/organisations/{orgId}/<br/>schedules/user/device<br/>Create the schedule, or reuse one, see below
     B->>S: POST /permissionManagementV3/v1/organisations/{orgId}/<br/>schedules/user/assign<br/>This person, this lock
     opt Passcode was granted
+        B->>S: NEW: GET .../accessPoints/{accessPointId}/credential-permissions?accessorId=<br/>until the passcode credential is applied
         B->>S: CHANGED: POST /permissionManagementV3/v1/organisations/{orgId}/<br/>passcode/generate<br/>accessorId, size, and the passcode credentialId
         S-->>B: The passcode
     end
@@ -304,6 +305,8 @@ sequenceDiagram
     participant B as Binaryveda's backend
 
     U->>A: Choose and confirm a passcode
+    A->>B: NEW: is this lock's passcode credential applied yet?
+    B-->>A: Applied, after polling GET .../credential-permissions?accessorId=
     A->>C: oauthManager.getOrCreateSession, then setAuthToken
     A->>C: CHANGED: addUserPasscode(serialNumber, credentialId, orgId,<br/>accessorId, passcode, KeypadManagerCallback)
     C->>L: Write the passcode over BLE
@@ -312,13 +315,15 @@ sequenceDiagram
     A-->>U: On to the rest of the granted methods
 ```
 
+**Wait until the binding from step 3 is `applied`** before writing, as in [When a binding reaches the lock](api-changes.md#when-a-binding-reaches-the-lock).
+
 **`credentialId` is the passcode credential bound to this lock in step 3.** If that credential is shared with another of the person's locks, the passcode they choose here is their passcode there as well.
 
 ## 5. The other access methods <span class="chg chg-changed">changed</span> { #5-the-other-access-methods data-toc-label="5. The other access methods" }
 
 Fingerprint and RFID work as in [Lock Onboarding, step 8](lock-onboarding.md#8-fingerprint-and-rfid):
 
-- **Fingerprint:** bind the person's fingerprint credential to the lock, if it is not already on it, then enrol with `performFPEnrollmentOnDevice(serialNumber, credentialId, …)`.
+- **Fingerprint:** bind the person's fingerprint credential to the lock, if it is not already on it, wait until it is `applied`, then enrol with `performFPEnrollmentOnDevice(serialNumber, credentialId, …)`. A person has one fingerprint credential for all their locks and enrols fingers lock by lock, see [One fingerprint credential, many fingers](lock-onboarding.md#one-fingerprint-credential-many-fingers).
 - **RFID card:** `assignCardToAccessorWithPermission(serialNumber, orgId, accessorId, accessPointId, CREDENTIAL_PERMISSION, true, …)` assigns the card and binds it to this lock.
 
 **NFC tap and dual authentication now belong to the person.** Both are settings of the person, applied on every lock they open from the app in the property. Turning dual authentication on for a user from one lock's screen turns it on for them on all of that property's locks. Your user detail screen should say so.
