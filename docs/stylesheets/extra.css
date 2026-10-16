@@ -1,3 +1,121 @@
+/* --- Theme colours ------------------------------------------------------------
+   Light: white page, blue for the header and links, orange for highlights.
+   Dark: deep navy page with the same blue and orange, lifted for contrast.   */
+
+[data-md-color-primary="custom"] {
+  --md-primary-fg-color:        #1e4fd8;
+  --md-primary-fg-color--light: #4f7cf0;
+  --md-primary-fg-color--dark:  #163da8;
+  --md-primary-bg-color:        #ffffff;
+  --md-primary-bg-color--light: #ffffffb3;
+}
+
+[data-md-color-accent="custom"] {
+  --md-accent-fg-color:              #f97316;
+  --md-accent-fg-color--transparent: #f973161a;
+  --md-accent-bg-color:              #ffffff;
+  --md-accent-bg-color--light:       #ffffffb3;
+}
+
+[data-md-color-scheme="default"] {
+  --md-default-bg-color:   #ffffff;
+  --md-default-fg-color:   #172033e6;
+  --md-typeset-color:      #1f2937;
+  --md-typeset-a-color:    #1e4fd8;
+  --md-code-bg-color:      #f4f7fc;
+  --md-code-fg-color:      #1e3a8a;
+  --theme-surface:         #f7f9fd;
+  --theme-table-head:      #eaf0fd;
+  --theme-heading:         #0f1b3d;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-hue: 222;
+  --md-default-bg-color:   #0c1324;
+  --md-typeset-a-color:    #7aa2ff;
+  --md-code-bg-color:      #141d33;
+  --md-code-fg-color:      #c7d6ff;
+  --theme-surface:         #111a2e;
+  --theme-table-head:      #18233d;
+  --theme-heading:         #eef2ff;
+}
+
+[data-md-color-scheme="slate"][data-md-color-primary="custom"] {
+  --md-primary-fg-color:        #13213f;
+  --md-primary-fg-color--light: #2a3c66;
+  --md-primary-fg-color--dark:  #0a1430;
+}
+
+[data-md-color-scheme="slate"][data-md-color-accent="custom"] {
+  --md-accent-fg-color:              #fb923c;
+  --md-accent-fg-color--transparent: #fb923c1f;
+}
+
+/* Header: solid blue with an orange rule along the bottom. */
+.md-header {
+  border-bottom: 3px solid var(--md-accent-fg-color);
+}
+
+.md-header__topic:first-child {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* Sidebar: the page you are on, and links you point at, turn orange. */
+.md-nav__link--active,
+.md-nav__item .md-nav__link--active {
+  color: var(--md-accent-fg-color);
+  font-weight: 600;
+}
+
+.md-nav__link:hover,
+.md-nav__link:focus {
+  color: var(--md-accent-fg-color);
+}
+
+.md-nav__title {
+  color: var(--md-primary-fg-color);
+}
+
+[data-md-color-scheme="slate"] .md-nav__title {
+  color: var(--md-typeset-a-color);
+}
+
+/* Links in the text: blue, with an orange underline on hover. */
+.md-typeset a {
+  text-underline-offset: 0.18em;
+}
+
+.md-typeset a:hover {
+  color: var(--md-accent-fg-color);
+  text-decoration: underline;
+}
+
+/* The page title gets a short orange bar under it. */
+.md-typeset h1 {
+  color: var(--theme-heading);
+}
+
+.md-typeset h1::after {
+  content: "";
+  display: block;
+  width: 3rem;
+  height: 0.22rem;
+  margin-top: 0.45em;
+  border-radius: 0.2rem;
+  background: var(--md-accent-fg-color);
+}
+
+.md-typeset h2,
+.md-typeset h3 {
+  color: var(--theme-heading);
+}
+
+/* Inline code picks up the blue. */
+.md-typeset code {
+  color: var(--md-code-fg-color);
+}
+
 /* --- Layout and reading comfort --------------------------------------------
    A wider page so comparison tables and diagrams have room, but prose kept to a
    comfortable line length so paragraphs stay easy to read.                  */
@@ -23,7 +141,7 @@
 
 .md-typeset h1 {
   font-weight: 700;
-  color: var(--md-default-fg-color);
+  color: var(--theme-heading);
   margin-bottom: 0.8em;
 }
 
@@ -31,7 +149,7 @@
    clearly separated steps. */
 .md-typeset h2 {
   font-weight: 650;
-  color: var(--md-default-fg-color);
+  color: var(--theme-heading);
   margin-top: 2.6em;
   padding-top: 1.1em;
   border-top: 1px solid var(--md-default-fg-color--lightest);
@@ -83,7 +201,8 @@
 }
 
 .md-typeset table:not([class]) th {
-  background: var(--md-default-fg-color--lightest);
+  background: var(--theme-table-head);
+  color: var(--theme-heading);
   font-weight: 650;
   white-space: nowrap;
 }
@@ -95,7 +214,7 @@
 }
 
 .md-typeset table:not([class]) tbody tr:nth-child(even) {
-  background: color-mix(in srgb, var(--md-default-fg-color--lightest) 45%, transparent);
+  background: var(--theme-surface);
 }
 
 /* Long signatures wrap at their spaces and commas; a single identifier is only
@@ -130,7 +249,7 @@
   overflow-x: auto;
   border: 1px solid var(--md-default-fg-color--lightest);
   border-radius: 0.4rem;
-  background: var(--md-code-bg-color);
+  background: var(--theme-surface);
 }
 
 /* "Open full size" under each diagram, and the full-screen view it opens. */
@@ -154,7 +273,9 @@
 
 .md-typeset .mm-zoom-btn:hover,
 .md-typeset .mm-zoom-btn:focus-visible {
-  background: var(--md-default-fg-color--lightest);
+  color: var(--md-accent-bg-color);
+  background: var(--md-accent-fg-color);
+  border-color: var(--md-accent-fg-color);
 }
 
 .mm-zoom {
