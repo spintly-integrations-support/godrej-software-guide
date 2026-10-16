@@ -1,32 +1,216 @@
-/* Wider content column — the flow diagrams and comparison tables need room. */
+/* --- Layout and reading comfort --------------------------------------------
+   A wider page so comparison tables and diagrams have room, but prose kept to a
+   comfortable line length so paragraphs stay easy to read.                  */
+
 .md-grid {
-  max-width: 68rem;
+  max-width: 82rem;
 }
 
-/* Tables carry the side-by-side comparisons, so tighten them up. Zensical emits
-   a bare <table> with no scroll wrapper, so the table is its own scroll
-   container — that way a long row never gets clipped. */
-.md-typeset table:not([class]) {
-  display: block;
+.md-typeset {
+  font-size: 0.84rem;
+  line-height: 1.75;
+}
+
+/* Paragraphs, lists and notes stop at about 80 characters; tables and
+   diagrams below still use the full width. */
+.md-typeset > p,
+.md-typeset > ul,
+.md-typeset > ol,
+.md-typeset > .admonition,
+.md-typeset > details {
+  max-width: 46rem;
+}
+
+.md-typeset h1 {
+  font-weight: 700;
+  color: var(--md-default-fg-color);
+  margin-bottom: 0.8em;
+}
+
+/* Each step starts with a rule, so a long flow page reads as a series of
+   clearly separated steps. */
+.md-typeset h2 {
+  font-weight: 650;
+  color: var(--md-default-fg-color);
+  margin-top: 2.6em;
+  padding-top: 1.1em;
+  border-top: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.md-typeset h3 {
+  font-weight: 650;
+  margin-top: 1.8em;
+}
+
+.md-typeset h4 {
+  font-weight: 650;
+  font-size: 0.95em;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Inline code reads as a token, not as a block of grey. */
+.md-typeset code {
+  font-size: 0.86em;
+  padding: 0.05em 0.3em;
+  border-radius: 0.2em;
+  overflow-wrap: break-word;
+}
+
+/* --- Tables ------------------------------------------------------------------
+   The theme already wraps each table in a scroll container. Here they fill the
+   column, wrap long member names instead of running off the edge, and get a
+   header band and row stripes so a wide row can be followed across.         */
+
+/* The theme sizes the table's wrapper to its content; make it fill the column
+   instead, so a wide table scrolls inside its own box rather than widening
+   the whole page on a phone. */
+.md-typeset .md-typeset__scrollwrap {
   overflow-x: auto;
-  font-size: 0.72rem;
 }
 
-/* Identifiers, endpoints and headers stay on one line — a member name or a URL
-   path split mid-token is easy to misread. Anything too wide to fit scrolls via
-   the rule above rather than being clipped. */
-.md-typeset table:not([class]) td code,
+.md-typeset .md-typeset__table {
+  display: block;
+  min-width: 0;
+}
+
+.md-typeset table:not([class]) {
+  font-size: 0.78rem;
+  line-height: 1.6;
+  width: 100%;
+  display: table;
+  border-radius: 0.3rem;
+}
+
 .md-typeset table:not([class]) th {
+  background: var(--md-default-fg-color--lightest);
+  font-weight: 650;
   white-space: nowrap;
 }
 
-.md-typeset table:not([class]) td {
+.md-typeset table:not([class]) td,
+.md-typeset table:not([class]) th {
+  padding: 0.75em 1em;
   vertical-align: top;
 }
 
-/* Mermaid diagrams sit better with a little air around them. */
+.md-typeset table:not([class]) tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--md-default-fg-color--lightest) 45%, transparent);
+}
+
+/* Long signatures wrap at their spaces and commas; a single identifier is only
+   broken if it cannot fit on a line of its own. */
+.md-typeset table:not([class]) td code {
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+/* The first column is usually the name of the row: keep it from being
+   squeezed to one word per line. */
+.md-typeset table:not([class]) td:first-child {
+  min-width: 7rem;
+  font-weight: 500;
+}
+
+/* On a phone, tables keep a readable minimum width and scroll sideways. */
+@media screen and (max-width: 44.9375em) {
+  .md-typeset table:not([class]) {
+    min-width: 36rem;
+  }
+}
+
+/* --- Diagrams ------------------------------------------------------------------
+   Drawn at their natural size inside a card, scrolling sideways when wider
+   than the page, instead of being shrunk until the labels are unreadable.    */
+
 .md-typeset .mermaid {
-  margin: 1.2em 0;
+  margin: 1.4em 0 0.4em;
+  padding: 1rem;
+  overflow-x: auto;
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.4rem;
+  background: var(--md-code-bg-color);
+}
+
+/* "Open full size" under each diagram, and the full-screen view it opens. */
+.md-typeset .mm-zoom-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0 0 1.2em;
+}
+
+.md-typeset .mm-zoom-btn {
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.3em 0.9em;
+  border-radius: 1em;
+  border: 1px solid var(--md-default-fg-color--lighter);
+  color: var(--md-typeset-a-color);
+  background: transparent;
+  cursor: pointer;
+}
+
+.md-typeset .mm-zoom-btn:hover,
+.md-typeset .mm-zoom-btn:focus-visible {
+  background: var(--md-default-fg-color--lightest);
+}
+
+.mm-zoom {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  background: var(--md-default-bg-color);
+}
+
+.mm-zoom-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 1rem;
+  font-size: 0.75rem;
+  color: var(--md-default-fg-color--light);
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.mm-zoom-close {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.3em 1em;
+  border-radius: 1em;
+  border: 1px solid var(--md-default-fg-color--lighter);
+  color: var(--md-default-fg-color);
+  background: transparent;
+  cursor: pointer;
+}
+
+.mm-zoom-body {
+  flex: 1;
+  overflow: auto;
+  padding: 1.5rem;
+}
+
+.mm-zoom-body svg {
+  display: block;
+  margin: 0 auto;
+}
+
+/* Diagrams inside tabs sit flush with the tab panel. */
+.md-typeset .tabbed-block > .mermaid {
+  margin-top: 0.6em;
+}
+
+/* --- Admonitions ---------------------------------------------------------- */
+
+.md-typeset .admonition,
+.md-typeset details {
+  font-size: 0.8rem;
+  border-width: 0 0 0 0.25rem;
+  border-radius: 0.3rem;
 }
 
 /* --- Sequence diagram palette ---------------------------------------------
@@ -292,25 +476,36 @@
 }
 
 /* --- Change badges ----------------------------------------------------------
-   Added for the multi-lock change notes. Each step heading on a flow page
-   carries one, so a reader can skim a page for what they have to touch.     */
+   Each step heading carries one, so a reader can skim a page for what they have
+   to touch. Drawn as a tinted pill so it reads at a glance.                 */
 
 .md-typeset .chg {
   display: inline-block;
-  margin-left: 0.5em;
-  padding: 0.05em 0.5em;
-  border-radius: 0.2em;
-  font-size: 0.62em;
+  margin-left: 0.6em;
+  padding: 0.15em 0.65em;
+  border-radius: 1em;
+  font-size: 0.55em;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
+  line-height: 1.5;
   text-transform: uppercase;
-  vertical-align: 0.2em;
-  border: 1px solid currentColor;
+  vertical-align: 0.35em;
+  color: var(--c);
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
 }
 
-.md-typeset .chg-new       { color: #e11d48; }
-.md-typeset .chg-changed   { color: #ca8a04; }
-.md-typeset .chg-unchanged { color: var(--md-default-fg-color--light); }
+/* In a table cell the pill sits on the text line rather than above it. */
+.md-typeset td .chg {
+  margin-left: 0;
+  font-size: 0.7em;
+  vertical-align: 0.1em;
+}
 
-[data-md-color-scheme="slate"] .md-typeset .chg-new     { color: #fb7185; }
-[data-md-color-scheme="slate"] .md-typeset .chg-changed { color: #fbbf24; }
+.md-typeset .chg-new       { --c: #e11d48; }
+.md-typeset .chg-changed   { --c: #b45309; }
+.md-typeset .chg-unchanged { --c: #64748b; }
+
+[data-md-color-scheme="slate"] .md-typeset .chg-new       { --c: #fb7185; }
+[data-md-color-scheme="slate"] .md-typeset .chg-changed   { --c: #fbbf24; }
+[data-md-color-scheme="slate"] .md-typeset .chg-unchanged { --c: #94a3b8; }

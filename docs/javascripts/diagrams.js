@@ -236,16 +236,25 @@
         }
       }
 
+      try {
+        zoomButtonForSource(id, source);
+      } catch (e) {
+        /* a missing button is not worth failing a diagram over */
+      }
+
       var result = render(id, source);
-      if (!result || typeof result.then !== "function" || !isSequence(source)) {
+      if (!result || typeof result.then !== "function") {
         return result;
       }
       return result.then(function (out) {
         try {
-          if (out && typeof out.svg === "string") out.svg = colourise(out.svg, source);
+          if (out && typeof out.svg === "string" && isSequence(source)) {
+            out.svg = colourise(out.svg, source);
+          }
         } catch (e) {
           /* leave the diagram exactly as mermaid drew it */
         }
+        if (out && typeof out.svg === "string") zoomStore[id] = out.svg;
         return out;
       });
     };
@@ -268,6 +277,66 @@
     } catch (e) {
       /* nothing to do: diagrams stay monochrome */
     }
+  }
+
+  /* --- full-size view -------------------------------------------------------
+     Diagrams are fitted to the page width, which keeps the whole flow in view
+     but makes the labels of a wide diagram small. Each one gets a button that
+     opens the same drawing at its natural size in a full-screen, scrollable
+     view. The button is inserted next to the <pre> before the theme replaces
+     it, the same way the legends are, and the rendered SVG is kept by id. */
+
+  var zoomStore = {};
+
+  function zoomButtonForSource(id, source) {
+    var pres = document.querySelectorAll("pre");
+    for (var i = 0; i < pres.length; i++) {
+      if (pres[i].dataset.zoom === "1") continue;
+      if ((pres[i].textContent || "") !== source) continue;
+      pres[i].dataset.zoom = "1";
+      var bar = document.createElement("div");
+      bar.className = "mm-zoom-bar";
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "mm-zoom-btn";
+      btn.textContent = "Open full size";
+      btn.addEventListener("click", function () { openZoom(id); });
+      bar.appendChild(btn);
+      pres[i].parentNode.insertBefore(bar, pres[i].nextSibling);
+      return;
+    }
+  }
+
+  function openZoom(id) {
+    var markup = zoomStore[id];
+    if (!markup) return;
+    var overlay = document.createElement("div");
+    overlay.className = "mm-zoom";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.innerHTML = '<div class="mm-zoom-head"><span>Scroll to move around the diagram. Esc closes.</span>' +
+      '<button type="button" class="mm-zoom-close" aria-label="Close">Close</button></div>' +
+      '<div class="mm-zoom-body">' + markup + "</div>";
+    var svg = overlay.querySelector("svg");
+    if (svg) {
+      var vb = (svg.getAttribute("viewBox") || "").split(/[\s,]+/);
+      var w = parseFloat(vb[2]);
+      svg.style.maxWidth = "none";
+      if (!isNaN(w)) svg.setAttribute("width", Math.round(w));
+      svg.removeAttribute("height");
+    }
+    function close() {
+      document.removeEventListener("keydown", onKey);
+      overlay.remove();
+      document.documentElement.style.overflow = "";
+    }
+    function onKey(e) { if (e.key === "Escape") close(); }
+    overlay.querySelector(".mm-zoom-close").addEventListener("click", close);
+    overlay.addEventListener("click", function (e) { if (e.target === overlay) close(); });
+    document.addEventListener("keydown", onKey);
+    document.documentElement.style.overflow = "hidden";
+    document.body.appendChild(overlay);
+    overlay.querySelector(".mm-zoom-close").focus();
   }
 
   /* --- legends ------------------------------------------------------------ */
