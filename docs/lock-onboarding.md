@@ -338,7 +338,15 @@ Progress arrives as `CONNECTED`, `VERIFYING`, `SENDING_TO_DEVICE`, `SYNCING`.
 
 ### Fingerprint
 
-**Bind first, wait until it is applied, then enrol.** The fingerprint credential has to be on the lock before a finger is enrolled for it. Enrolling while the binding is still `pending` fails with `6/46`.
+**Make sure the person has a fingerprint credential, bind it, wait until it is applied, then enrol.** The fingerprint credential has to be on the lock before a finger is enrolled for it. Enrolling while the binding is still `pending` fails with `6/46`.
+
+**A person may not have a fingerprint credential yet.** It is only created when fingerprint is enabled on their access settings. If fingerprint was not enabled when their accessor was created, there is no fingerprint credential until you enable it:
+
+1. Enable fingerprint on the person's access settings: `PATCH …/accessor/{accessorId}/accessSettings` with `{ "fingerprintAccess": true }`. This creates the credential the first time fingerprint is enabled for them. The response does not include it.
+2. Read the new credential: `GET /credentialManagementV3/v1/organisations/{orgId}/accessors/{accessorId}/credential?credentialType=fingerprint`. Store its `credentialId`.
+3. Bind it to this lock and wait until it is `applied`, as below.
+
+Disabling and re-enabling fingerprint later does not create another one, so a person keeps the same fingerprint credential.
 
 ```mermaid
 sequenceDiagram
@@ -350,6 +358,13 @@ sequenceDiagram
     participant L as Lock hardware
 
     U->>A: Add a fingerprint
+    opt NEW: if the person has no fingerprint credential yet
+        A->>B: Your mutation, before the enrolment
+        B->>S: PATCH /permissionManagementV3/v1/organisations/{orgId}/<br/>accessor/{accessorId}/accessSettings<br/>fingerprintAccess: true
+        Note right of S: Creates the fingerprint credential,<br/>not returned in the response
+        B->>S: GET /credentialManagementV3/v1/organisations/{orgId}/<br/>accessors/{accessorId}/credential?credentialType=fingerprint
+        S-->>B: The fingerprint credentialId, stored
+    end
     opt If the fingerprint credential is not on this lock yet
         A->>B: Your mutation, before the enrolment
         B->>S: NEW: PATCH /permissionManagementV3/v1/organisations/{orgId}/<br/>accessors/{accessorId}/credentials/{credentialId}/permissions<br/>accessPointsToAdd: this lock

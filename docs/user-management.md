@@ -323,7 +323,7 @@ sequenceDiagram
 
 Fingerprint and RFID work as in [Lock Onboarding, step 8](lock-onboarding.md#8-fingerprint-and-rfid):
 
-- **Fingerprint:** bind the person's fingerprint credential to the lock, if it is not already on it, wait until it is `applied`, then enrol with `performFPEnrollmentOnDevice(serialNumber, credentialId, …)`. A person has one fingerprint credential for all their locks and enrols fingers lock by lock, see [One fingerprint credential, many fingers](lock-onboarding.md#one-fingerprint-credential-many-fingers).
+- **Fingerprint:** if the person has no fingerprint credential yet, enable `fingerprintAccess` on their access settings and read the new credential with `GET …/credential?credentialType=fingerprint`. Then bind it to the lock, if it is not already on it, wait until it is `applied`, then enrol with `performFPEnrollmentOnDevice(serialNumber, credentialId, …)`. A person has one fingerprint credential for all their locks and enrols fingers lock by lock, see [One fingerprint credential, many fingers](lock-onboarding.md#one-fingerprint-credential-many-fingers).
 - **RFID card:** `assignCardToAccessorWithPermission(serialNumber, orgId, accessorId, accessPointId, CREDENTIAL_PERMISSION, true, …)` assigns the card and binds it to this lock.
 
 **NFC tap and dual authentication now belong to the person.** Both are settings of the person, applied on every lock they open from the app in the property. Turning dual authentication on for a user from one lock's screen turns it on for them on all of that property's locks. Your user detail screen should say so.

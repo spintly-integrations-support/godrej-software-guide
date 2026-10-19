@@ -119,7 +119,7 @@ GET /credentialManagementV3/v1/organisations/{orgId}/accessors/{accessorId}/cred
 }
 ```
 
-A person can hold several credentials of one type, so key on `credentialId`, never on `type`. Use this to read a credential created when a type was enabled on access settings, which that call does not return.
+A person can hold several credentials of one type, so key on `credentialId`, never on `type`. Use this to read a credential created when a type was enabled on access settings, which that call does not return. For example, a person whose accessor was created without fingerprint gets their fingerprint credential only when `fingerprintAccess` is first enabled for them: read it here with `?credentialType=fingerprint`, then bind it.
 
 ### Creating another credential
 
