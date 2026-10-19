@@ -35,7 +35,7 @@ Your invite grants methods per lock: app access always, plus `passcode`, `finger
 | RFID card | Nothing when the invite is accepted. The card is bound to the lock as it is assigned at the lock |
 | NFC tap | `tapToAccess` on the **person's** access settings. It applies on every lock where they have app access, not on one lock |
 
-**Access settings still decide which credential types a person may have.** Enable a type when it is first granted on any of the person's locks in the property. The first time a type is enabled, its credential is created. Leave it enabled while any of their locks still uses it.
+**Access settings still decide which credential types a person may have.** Enable a type when it is first granted on any of the person's locks in the property. The first time a type is enabled, its credential is created and returned in the response. Leave it enabled while any of their locks still uses it.
 
 **Unticking a method on one lock is an unbind on that lock.** The access setting stays as it is.
 
@@ -323,7 +323,7 @@ sequenceDiagram
 
 Fingerprint and RFID work as in [Lock Onboarding, step 8](lock-onboarding.md#8-fingerprint-and-rfid):
 
-- **Fingerprint:** if the person has no fingerprint credential yet, enable `fingerprintAccess` on their access settings and read the new credential with `GET …/credential?credentialType=fingerprint`. Then bind it to the lock, if it is not already on it, wait until it is `applied`, then enrol with `performFPEnrollmentOnDevice(serialNumber, credentialId, …)`. A person has one fingerprint credential for all their locks and enrols fingers lock by lock, see [One fingerprint credential, many fingers](lock-onboarding.md#one-fingerprint-credential-many-fingers).
+- **Fingerprint:** if the person has no fingerprint credential yet, enable `fingerprintAccess` on their access settings: the response returns the new credential. Then bind it to the lock, if it is not already on it, wait until it is `applied`, then enrol with `performFPEnrollmentOnDevice(serialNumber, credentialId, …)`. A person has one fingerprint credential for all their locks and enrols fingers lock by lock, see [One fingerprint credential, many fingers](lock-onboarding.md#one-fingerprint-credential-many-fingers).
 - **RFID card:** `assignCardToAccessorWithPermission(serialNumber, orgId, accessorId, accessPointId, CREDENTIAL_PERMISSION, true, …)` assigns the card and binds it to this lock.
 
 **NFC tap and dual authentication now belong to the person.** Both are settings of the person, applied on every lock they open from the app in the property. Turning dual authentication on for a user from one lock's screen turns it on for them on all of that property's locks. Your user detail screen should say so.

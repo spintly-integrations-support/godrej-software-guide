@@ -342,9 +342,8 @@ Progress arrives as `CONNECTED`, `VERIFYING`, `SENDING_TO_DEVICE`, `SYNCING`.
 
 **A person may not have a fingerprint credential yet.** It is only created when fingerprint is enabled on their access settings. If fingerprint was not enabled when their accessor was created, there is no fingerprint credential until you enable it:
 
-1. Enable fingerprint on the person's access settings: `PATCH …/accessor/{accessorId}/accessSettings` with `{ "fingerprintAccess": true }`. This creates the credential the first time fingerprint is enabled for them. The response does not include it.
-2. Read the new credential: `GET /credentialManagementV3/v1/organisations/{orgId}/accessors/{accessorId}/credential?credentialType=fingerprint`. Store its `credentialId`.
-3. Bind it to this lock and wait until it is `applied`, as below.
+1. Enable fingerprint on the person's access settings: `PATCH …/accessor/{accessorId}/accessSettings` with `{ "fingerprintAccess": true }`. The first time fingerprint is enabled for them, this creates the credential, and the response returns it (see [Access settings](api-changes.md#access-settings)). Store its `credentialId`.
+2. Bind it to this lock and wait until it is `applied`, as below.
 
 Disabling and re-enabling fingerprint later does not create another one, so a person keeps the same fingerprint credential.
 
@@ -361,9 +360,7 @@ sequenceDiagram
     opt NEW: if the person has no fingerprint credential yet
         A->>B: Your mutation, before the enrolment
         B->>S: PATCH /permissionManagementV3/v1/organisations/{orgId}/<br/>accessor/{accessorId}/accessSettings<br/>fingerprintAccess: true
-        Note right of S: Creates the fingerprint credential,<br/>not returned in the response
-        B->>S: GET /credentialManagementV3/v1/organisations/{orgId}/<br/>accessors/{accessorId}/credential?credentialType=fingerprint
-        S-->>B: The fingerprint credentialId, stored
+        S-->>B: NEW: the fingerprint credential in the response, stored
     end
     opt If the fingerprint credential is not on this lock yet
         A->>B: Your mutation, before the enrolment

@@ -17,7 +17,7 @@ All Permission Management paths are under `/permissionManagementV3`, all Credent
 | <span class="chg chg-new">new</span> | `GET …/accessors/{accessorId}/credentials/{credentialId}/permissions` | Lock Settings |
 | <span class="chg chg-new">new</span> | `PATCH …/accessPoints/{accessPointId}/credential-permissions` | Lock Onboarding 4, User Management, Lock Settings |
 | <span class="chg chg-new">new</span> | `GET …/accessPoints/{accessPointId}/credential-permissions` | User Management, Lock Settings |
-| <span class="chg chg-changed">changed</span> | `PATCH …/accessor/{accessorId}/accessSettings`: `dualAuth` and `adminRole` | Lock Onboarding 1, User Management 6 |
+| <span class="chg chg-changed">changed</span> | `PATCH …/accessor/{accessorId}/accessSettings`: `dualAuth` and `adminRole`, and returns the credentials of the types it enables | Lock Onboarding 1 and 8, User Management 1 and 6 |
 | <span class="chg chg-changed">changed</span> | `POST …/passcode/generate`: `credentialId` | User Management 1 |
 | <span class="chg chg-changed">changed</span> | `POST …/schedules/user/assign`: needs credentials on the lock, one schedule per lock | User Management 1, 6 |
 | <span class="chg chg-changed">changed</span> | `PATCH …/accessors/{accessorId}/permissions` and `PATCH …/accessPoints/{accessPointId}/permissions`: **refused** | Replaced everywhere |
@@ -119,7 +119,7 @@ GET /credentialManagementV3/v1/organisations/{orgId}/accessors/{accessorId}/cred
 }
 ```
 
-A person can hold several credentials of one type, so key on `credentialId`, never on `type`. Use this to read a credential created when a type was enabled on access settings, which that call does not return. For example, a person whose accessor was created without fingerprint gets their fingerprint credential only when `fingerprintAccess` is first enabled for them: read it here with `?credentialType=fingerprint`, then bind it.
+A person can hold several credentials of one type, so key on `credentialId`, never on `type`. Use it whenever you need a `credentialId` you did not store, for example after a failed write on your side.
 
 ### Creating another credential
 
@@ -270,6 +270,27 @@ Two fields join the person's access settings. Both apply to the **person across 
 | `dualAuth` | Dual authentication. Today set per lock on the permission call |
 
 They can also be sent in the access settings of the accessor create and add-to-organisation calls. The other access settings, such as `passcodeAccess`, `fingerprintAccess`, `cardAccess` and `tapToAccess`, keep their meaning: enabling a type for the first time issues its credential.
+
+**The response now returns the person's credentials** for every type the request enables, whether the credential was created by this call or already existed. A type that cannot be issued by Spintly, such as a card, is not included. For example, turning on fingerprint for someone whose accessor was created without it:
+
+```json
+{ "fingerprintAccess": true }
+```
+
+```json
+{
+  "type": "success",
+  "message": {
+    "orgId": 123,
+    "accessorId": 107968,
+    "credentials": [
+      { "type": "fingerprint", "credentialId": 44389500, "format": "32_bit", "status": 1 }
+    ]
+  }
+}
+```
+
+Each entry is the same object the accessor call returns under `credentialTypes`. Store the `credentialId`, then bind it. `credentials` is empty when the request enables no credential type, for example one that only changes `dualAuth`.
 
 ## Passcodes and schedules
 
