@@ -1,6 +1,6 @@
 # Multiple Locks & Passcodes
 
-What changes in the IoT9 B2C flows so that one property can hold **several locks**, and one person can hold **several passcodes**: a different one on each lock, or one shared across several, as you choose.
+What changes in the IoT9 B2C flows so that one property can hold **several locks**, and one person can hold **several passcodes**: one for each lock.
 
 ## What this reference is
 
@@ -38,7 +38,7 @@ flowchart LR
     F --> D2
 ```
 
-Asha opens both doors from the app and with her fingerprint, but each door has its own passcode. Binding **Passcode 1** to the back door as well would make it open both.
+Asha opens both doors from the app and with her fingerprint, but each door has its own passcode. Each lock gets a fresh passcode credential: for a second lock, Asha gets a second passcode credential.
 
 ## What changes at a glance
 
@@ -47,7 +47,7 @@ Asha opens both doors from the app and with her fingerprint, but each door has i
 | Locks per property | One | Many |
 | Credentials per person | One | Many: one app credential and one fingerprint credential, plus as many passcode and card credentials as you need |
 | How access is granted | To the person, on a lock | To a **credential**, on a lock |
-| Passcodes | One per person, valid on every lock | One per credential. Per lock, or shared, as you choose |
+| Passcodes | One per person, valid on every lock | **A fresh passcode credential for each lock.** A passcode is never copied between locks, so changing one never affects another |
 | Sync signals | `resource_alive` for the organisation, `site_create` for the property | `resource_alive` for **every** resource: organisation, site, network and access point |
 | Admin and dual authentication | Set per lock on the permission call | Set **per person** across the organisation, on access settings |
 | Schedules | Several per person on one lock | **One per person per lock**. Different locks can carry different schedules, or share one |

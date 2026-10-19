@@ -30,7 +30,7 @@ Your invite grants methods per lock: app access always, plus `passcode`, `finger
 | Granted on this lock | At Spintly |
 |---|---|
 | App access, always | Bind the person's **app credential** to the lock |
-| Passcode | Bind a **passcode credential** to the lock: a new one from `credential/create` for a passcode that works only here, or one the person already has, to share it. The person then sets the digits with `addUserPasscode` |
+| Passcode | Bind a **passcode credential** to the lock: the one issued with the person's accessor if it is not on any lock yet, otherwise a new one from `credential/create`. Use a fresh passcode credential for each lock: a passcode is never copied between locks. The person then sets the digits with `addUserPasscode` |
 | Fingerprint | Nothing when the invite is accepted. The fingerprint credential is bound just before a finger is enrolled |
 | RFID card | Nothing when the invite is accepted. The card is bound to the lock as it is assigned at the lock |
 | NFC tap | `tapToAccess` on the **person's** access settings. It applies on every lock where they have app access, not on one lock |
@@ -148,12 +148,12 @@ sequenceDiagram
         B->>S: NEW: POST /credentialManagementV3/v1/accessors, or<br/>POST .../organisations/{orgId}/accessors/{accessorId}<br/>Carrying this lock
         S-->>B: NEW: accessorId and credentialIds, already bound to this lock
     else If they are already in it, on another lock
-        B->>S: NEW: PATCH /permissionManagementV3/v1/organisations/{orgId}/<br/>accessPoints/{accessPointId}/credential-permissions<br/>credentialsToAdd: the app credential and a passcode credential
+        B->>S: NEW: PATCH /permissionManagementV3/v1/organisations/{orgId}/<br/>accessPoints/{accessPointId}/credential-permissions<br/>credentialsToAdd: the app credential and a new passcode credential
     end
     B->>S: POST /permissionManagementV3/v1/organisations/{orgId}/<br/>schedules/user/device<br/>Create the schedule, or reuse one, see below
     B->>S: POST /permissionManagementV3/v1/organisations/{orgId}/<br/>schedules/user/assign<br/>This person, this lock
     opt Passcode was granted
-        B->>S: NEW: GET .../accessPoints/{accessPointId}/credential-permissions?accessorId=<br/>until the passcode credential is applied
+        B->>S: NEW: GET .../accessPoints/{accessPointId}/credential-permissions?accessorId=<br/>until the passcode credential is in_sync
         B->>S: CHANGED: POST /permissionManagementV3/v1/organisations/{orgId}/<br/>passcode/generate<br/>accessorId, size, and the passcode credentialId
         S-->>B: The passcode
     end
@@ -162,14 +162,9 @@ sequenceDiagram
 
 **A schedule is per person, per lock.** A person can be on different schedules on different locks. On any one lock they have **one** schedule: assigning another on the same lock **replaces** it. Your **Add New Schedule**, on a lock where the person already has a schedule, becomes *edit* or *replace*.
 
-**The same schedule on a second lock**, with or without the same passcode:
+**The same schedule on a second lock:** `credential/create` for a new passcode credential, bind it and the app credential to the second lock, assign the schedule there, then `passcode/generate` with the **new** `credentialId`. The second lock gets its own passcode, because a passcode is never copied between locks.
 
-| You want | Do this |
-|---|---|
-| The same passcode on the second lock | Bind the **same** passcode credential and the app credential to the second lock, then assign the schedule there. **Do not** call `passcode/generate` again: it would change the digits on every lock that credential is on |
-| A different passcode on the second lock | `credential/create` for a new passcode credential, bind it and the app credential to the second lock, assign the schedule there, then `passcode/generate` with the **new** `credentialId` |
-
-Either way, the second lock can use the **same `scheduleId`**. Editing that schedule then changes it on both locks. See [Managing users afterwards](#6-managing-users-afterwards).
+The second lock can use the **same `scheduleId`**. Editing that schedule then changes it on both locks. See [Managing users afterwards](#6-managing-users-afterwards).
 
 A lock's schedule applies to everything the person has bound on it, app access included, and to anything bound there later.
 
@@ -268,7 +263,7 @@ sequenceDiagram
         B->>S: CHANGED: POST /credentialManagementV3/v1/organisations/{orgId}/accessors/{accessorId}<br/>Carrying this lock in accessPointsToAdd
         S-->>B: NEW: the credentials issued, already bound to this lock
     else They are already in this property, on another lock
-        opt A passcode only for this lock
+        opt Passcode was granted on this lock
             B->>S: NEW: POST /permissionManagementV3/v1/organisations/{orgId}/<br/>accessors/{accessorId}/credential/create
             S-->>B: NEW: credentialId
         end
@@ -305,8 +300,8 @@ sequenceDiagram
     participant B as Binaryveda's backend
 
     U->>A: Choose and confirm a passcode
-    A->>B: NEW: is this lock's passcode credential applied yet?
-    B-->>A: Applied, after polling GET .../credential-permissions?accessorId=
+    A->>B: NEW: is this lock's passcode credential in sync yet?
+    B-->>A: In sync, after polling GET .../credential-permissions?accessorId=
     A->>C: oauthManager.getOrCreateSession, then setAuthToken
     A->>C: CHANGED: addUserPasscode(serialNumber, credentialId, orgId,<br/>accessorId, passcode, KeypadManagerCallback)
     C->>L: Write the passcode over BLE
@@ -315,15 +310,15 @@ sequenceDiagram
     A-->>U: On to the rest of the granted methods
 ```
 
-**Wait until the binding from step 3 is `applied`** before writing, as in [When a binding reaches the lock](api-changes.md#when-a-binding-reaches-the-lock).
+**Wait until the binding from step 3 is `in_sync`** before writing, as in [When a binding reaches the lock](api-changes.md#when-a-binding-reaches-the-lock).
 
-**`credentialId` is the passcode credential bound to this lock in step 3.** If that credential is shared with another of the person's locks, the passcode they choose here is their passcode there as well.
+**`credentialId` is the passcode credential bound to this lock in step 3.** It is this lock's own passcode credential, so the passcode chosen here works on this lock only.
 
 ## 5. The other access methods <span class="chg chg-changed">changed</span> { #5-the-other-access-methods data-toc-label="5. The other access methods" }
 
 Fingerprint and RFID work as in [Lock Onboarding, step 8](lock-onboarding.md#8-fingerprint-and-rfid):
 
-- **Fingerprint:** if the person has no fingerprint credential yet, enable `fingerprintAccess` on their access settings: the response returns the new credential. Then bind it to the lock, if it is not already on it, wait until it is `applied`, then enrol with `performFPEnrollmentOnDevice(serialNumber, credentialId, …)`. A person has one fingerprint credential for all their locks and enrols fingers lock by lock, see [One fingerprint credential, many fingers](lock-onboarding.md#one-fingerprint-credential-many-fingers).
+- **Fingerprint:** if the person has no fingerprint credential yet, enable `fingerprintAccess` on their access settings: the response returns the new credential. Then bind it to the lock, if it is not already on it, wait until it is `in_sync`, then enrol with `performFPEnrollmentOnDevice(serialNumber, credentialId, …)`. A person has one fingerprint credential for all their locks and enrols fingers lock by lock, see [One fingerprint credential, many fingers](lock-onboarding.md#one-fingerprint-credential-many-fingers).
 - **RFID card:** `assignCardToAccessorWithPermission(serialNumber, orgId, accessorId, accessPointId, CREDENTIAL_PERMISSION, true, …)` assigns the card and binds it to this lock.
 
 **NFC tap and dual authentication now belong to the person.** Both are settings of the person, applied on every lock they open from the app in the property. Turning dual authentication on for a user from one lock's screen turns it on for them on all of that property's locks. Your user detail screen should say so.
@@ -363,7 +358,7 @@ sequenceDiagram
     end
 ```
 
-**Changing methods sends only the change.** Ticking passcode binds a passcode credential, new or shared, and the person then sets it. Unticking passcode unbinds that credential from this lock only. A shared passcode keeps working on the person's other locks.
+**Changing methods sends only the change.** Ticking passcode binds a passcode credential for this lock (a new one from `credential/create` if the person's first one is already on another lock), and the person then sets it. Unticking passcode unbinds that credential from this lock.
 
 **Removing someone from one lock is one call.** Send an entry with only the `accessorId` in `credentialsToRemove`, and everything the person has on that lock goes: app access, passcodes, fingerprints and cards, including any added at the lock that your backend never recorded. Their other locks are untouched.
 

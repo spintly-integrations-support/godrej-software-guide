@@ -138,7 +138,7 @@ POST /permissionManagementV3/v1/organisations/{orgId}/accessors/{accessorId}/cre
 }
 ```
 
-Use it for a passcode that works only on one lock. It does not create app or fingerprint credentials: a person has exactly one of each, issued with the accessor or when the type is first enabled. Cards are not created here, they are assigned at the lock by the Config SDK.
+Use it for the passcode of every lock after the person's first: each lock needs its own passcode credential. It does not create app or fingerprint credentials: a person has exactly one of each, issued with the accessor or when the type is first enabled. Cards are not created here, they are assigned at the lock by the Config SDK.
 
 There is no limit on how many passcodes a person can hold. Apply any limit you want in your backend, before calling.
 
@@ -160,7 +160,7 @@ PATCH /permissionManagementV3/v1/organisations/{orgId}/accessors/{accessorId}/cr
 { "type": "success", "message": "success" }
 ```
 
-The credential type is worked out from the `credentialId`. A `400` means the lock does not support that type, for example a passcode on a lock with no keypad.
+The credential type is worked out from the `credentialId`. A `400` means the lock does not support that type, for example a passcode on a lock with no keypad. A credential can be bound to several locks, but a **passcode is never copied between locks**: use a fresh passcode credential for each lock, see [Lock Onboarding, step 4](lock-onboarding.md#4-customise-the-lock).
 
 ### One lock, several credentials or people
 
@@ -195,14 +195,14 @@ GET /permissionManagementV3/v1/organisations/{orgId}/accessors/{accessorId}/cred
     "credentialId": 700000001,
     "credentialType": "passcode",
     "accessPoints": [
-      { "accessPointId": 4567, "scheduleId": null, "status": "applied" },
-      { "accessPointId": 4568, "scheduleId": 88,   "status": "pending" }
+      { "accessPointId": 4567, "scheduleId": null, "status": "in_sync" },
+      { "accessPointId": 4568, "scheduleId": 88,   "status": "add_pending" }
     ]
   }
 }
 ```
 
-Use it to show "this passcode also opens…" before a passcode is changed.
+Use it to see which locks an app or fingerprint credential is on, and whether each binding is in sync. Passcode credentials are one per lock, so they are on a single lock.
 
 ### Reading what is on a lock
 
@@ -217,8 +217,8 @@ GET /permissionManagementV3/v1/organisations/{orgId}/accessPoints/{accessPointId
   "message": {
     "accessPointId": 4567,
     "credentials": [
-      { "accessorId": 107968, "credentialId": 900000011, "credentialType": "mobile_ble_nfc", "scheduleId": null, "status": "applied" },
-      { "accessorId": 107968, "credentialId": 700000001, "credentialType": "passcode",       "scheduleId": null, "status": "pending" }
+      { "accessorId": 107968, "credentialId": 900000011, "credentialType": "mobile_ble_nfc", "scheduleId": null, "status": "in_sync" },
+      { "accessorId": 107968, "credentialId": 700000001, "credentialType": "passcode",       "scheduleId": null, "status": "add_pending" }
     ]
   }
 }
@@ -236,17 +236,19 @@ Both `GET` calls above return a `status` for each binding:
 
 | `status` | Meaning |
 |---|---|
-| `pending` | Recorded, still on its way to the lock |
-| `applied` | The lock and the person's app have it |
-| `failed` | It could not be applied, for example because the passcode clashes with another one already on that lock. Remove the binding, or bind a different credential |
+| `add_pending` | Added, still on its way to the lock |
+| `delete_pending` | Removed, still being taken off the lock. Until it is gone, the credential may still open the lock |
+| `in_sync` | The lock and the person's app match what you asked for |
 
-**Wait for `applied` before you write to the lock for that credential.** The Config SDK checks with Spintly before it writes a passcode or enrols a finger, and refuses while the credential is not yet on the lock (for a fingerprint, `6/46`). So, after binding a passcode or fingerprint credential to a lock:
+A binding you removed stays in the list as `delete_pending` until the lock has dropped it, and then disappears.
+
+**Wait for `in_sync` before you write to the lock for that credential.** The Config SDK checks with Spintly before it writes a passcode or enrols a finger, and refuses while the credential is not yet on the lock (for a fingerprint, `6/46`). So, after binding a passcode or fingerprint credential to a lock:
 
 1. Call `GET …/accessPoints/{accessPointId}/credential-permissions?accessorId={accessorId}`.
-2. Find the entry for that `credentialId`. If it is `pending`, call again after a short wait, every 2 seconds as your `getLock` polling does.
-3. Once it is `applied`, call the SDK: `generateMasterPasscode`, `addUserPasscode` or `performFPEnrollmentOnDevice`. Call `passcode/generate` only then as well.
+2. Find the entry for that `credentialId`. If it is `add_pending`, call again after a short wait, every 2 seconds as your `getLock` polling does.
+3. Once it is `in_sync`, call the SDK: `generateMasterPasscode`, `addUserPasscode` or `performFPEnrollmentOnDevice`. Call `passcode/generate` only then as well.
 
-A credential that was already on the lock, such as a passcode being changed in My Access, is already `applied`, so there is nothing to wait for.
+A credential that was already on the lock, such as a passcode being changed in My Access, is already `in_sync`, so there is nothing to wait for.
 
 ### App access follows every binding
 

@@ -237,14 +237,14 @@ sequenceDiagram
 
 **The permission call is gone.** `PATCH .../accessors/{accessorId}/permissions` is refused for properties on the new model. Binding the app credential is what gives the owner the lock in the app, and binding a passcode credential is what lets step 7 write a passcode for it.
 
-**Which passcode credential goes on the lock is your choice.**
+**Use a fresh passcode credential for every lock.**
 
-| You want | Bind |
-|---|---|
-| A different passcode on every lock | A new passcode credential for each lock, from `credential/create`, as in the third branch above |
-| One passcode that opens several locks | The same passcode credential on each of them. Skip `credential/create` and bind the one you already have |
+- On the owner's **first** lock in a property, bind the passcode credential that came back with the accessor. It is not on any lock yet.
+- On **every later lock**, request a new one with `credential/create`, as in the third branch above, and bind that.
 
-On the owner's **first** lock in a property, the passcode credential that came back with the accessor is not on any lock yet, so it is the one to bind.
+**A passcode is never copied between locks.** Spintly does not stop a credential from being bound to more than one lock, but a passcode only exists on the lock it was written to. If a passcode credential were bound to two locks, its passcode would still work on only the one where it was set. Giving every lock its own credential keeps this simple: each lock's passcode belongs to that lock's credential, and changing it never touches another lock.
+
+A person can still choose the **same digits** on two locks. They are two separate passcodes that happen to match: changing one later does not change the other.
 
 **Store the passcode `credentialId` against the lock.** Every later passcode call for this lock (step 7, and My Access in Lock Settings) passes it. Today's lookup with `spintlyDetails(lockSerialNumber:)` returns `organisationId`, `accessorId` and `accessPointId`. It should now return the lock's passcode `credentialId` as well.
 
@@ -312,11 +312,11 @@ sequenceDiagram
 
     U->>A: Choose a passcode
     A->>B: Is this lock's passcode credential on the lock yet?
-    loop NEW: every 2 seconds, until it is applied
+    loop NEW: every 2 seconds, until it is in_sync
         B->>S: GET /permissionManagementV3/v1/organisations/{orgId}/<br/>accessPoints/{accessPointId}/credential-permissions?accessorId={accessorId}
-        S-->>B: status of each binding: pending, applied or failed
+        S-->>B: status of each binding: add_pending, delete_pending or in_sync
     end
-    B-->>A: Applied
+    B-->>A: In sync
     A->>C: CHANGED: generateMasterPasscode(serialNumber, credentialId, orgId,<br/>accessorId, oldPasscode, newPasscode, KeypadManagerCallback)
     C->>L: Write it over BLE
     L-->>C: Written
@@ -326,24 +326,24 @@ sequenceDiagram
 
 **`credentialId` is the passcode credential bound to this lock in step 4.** A credential that is not bound to this lock does not produce a working passcode.
 
-**Wait until that binding is `applied` before writing.** Step 4's binding reaches the lock in the background, and the SDK refuses a passcode for a credential that is not on the lock yet. Check it with the `GET` shown, as described in [When a binding reaches the lock](api-changes.md#when-a-binding-reaches-the-lock). By the time provisioning and firmware have finished it is usually already `applied`.
+**Wait until that binding is `in_sync` before writing.** Step 4's binding reaches the lock in the background, and the SDK refuses a passcode for a credential that is not on the lock yet. Check it with the `GET` shown, as described in [When a binding reaches the lock](api-changes.md#when-a-binding-reaches-the-lock). By the time provisioning and firmware have finished it is usually already `in_sync`.
 
 **One member on both platforms.** iOS's `updateMasterPasscode` and Android's `generateMasterPasscode` become `generateMasterPasscode` on both. A duplicate passcode fails with **`14/4`** on both, so iOS no longer needs to read the error message.
 
 Progress arrives as `CONNECTED`, `VERIFYING`, `SENDING_TO_DEVICE`, `SYNCING`.
 
-**If the passcode credential is shared with another lock**, the new passcode is the passcode on that lock too. That is what sharing means. See My Access in [Lock Settings](lock-settings.md#my-access-passcode).
+The new passcode applies to **this lock only**, because this lock's passcode credential is not on any other lock.
 
 ## 8. Fingerprint and RFID <span class="chg chg-changed">changed</span> { #8-fingerprint-and-rfid data-toc-label="8. Fingerprint and RFID" }
 
 ### Fingerprint
 
-**Make sure the person has a fingerprint credential, bind it, wait until it is applied, then enrol.** The fingerprint credential has to be on the lock before a finger is enrolled for it. Enrolling while the binding is still `pending` fails with `6/46`.
+**Make sure the person has a fingerprint credential, bind it, wait until it is `in_sync`, then enrol.** The fingerprint credential has to be on the lock before a finger is enrolled for it. Enrolling while the binding is still `add_pending` fails with `6/46`.
 
 **A person may not have a fingerprint credential yet.** It is only created when fingerprint is enabled on their access settings. If fingerprint was not enabled when their accessor was created, there is no fingerprint credential until you enable it:
 
 1. Enable fingerprint on the person's access settings: `PATCH …/accessor/{accessorId}/accessSettings` with `{ "fingerprintAccess": true }`. The first time fingerprint is enabled for them, this creates the credential, and the response returns it (see [Access settings](api-changes.md#access-settings)). Store its `credentialId`.
-2. Bind it to this lock and wait until it is `applied`, as below.
+2. Bind it to this lock and wait until it is `in_sync`, as below.
 
 Disabling and re-enabling fingerprint later does not create another one, so a person keeps the same fingerprint credential.
 
@@ -365,10 +365,10 @@ sequenceDiagram
     opt If the fingerprint credential is not on this lock yet
         A->>B: Your mutation, before the enrolment
         B->>S: NEW: PATCH /permissionManagementV3/v1/organisations/{orgId}/<br/>accessors/{accessorId}/credentials/{credentialId}/permissions<br/>accessPointsToAdd: this lock
-        loop NEW: every 2 seconds, until it is applied
+        loop NEW: every 2 seconds, until it is in_sync
             B->>S: GET .../accessPoints/{accessPointId}/credential-permissions?accessorId={accessorId}
         end
-        B-->>A: Applied
+        B-->>A: In sync
     end
     A->>C: CHANGED: performFPEnrollmentOnDevice(serialNumber, credentialId, orgId,<br/>accessorId, templateName, 19, FingerprintManagerCallback)
     loop Each scan of the finger
@@ -437,7 +437,7 @@ sequenceDiagram
 Every lock after the first runs the same eight steps. Only step 1 and step 4 behave differently, and both are already shown above:
 
 - **Step 1** usually does nothing: the user picks an existing property, which is already synced.
-- **Step 4** takes the third branch: a new passcode credential for the lock, or the existing one if the passcode is to be shared, then the binding.
+- **Step 4** takes the third branch: a new passcode credential for the lock from `credential/create`, then the binding.
 
 Steps 7 and 8 then use **this lock's** passcode credential and the person's fingerprint credential.
 

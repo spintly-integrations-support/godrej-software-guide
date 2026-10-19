@@ -4,7 +4,7 @@
 
 !!! warning "Key point"
 
-    Two entries change in what they mean, not only in their SDK members. **My Access** now manages a passcode that may be **shared with other locks**. **Remove Device** moves from the permission call to one binding call. Everything else on this page changes only because the Config SDK moves to v3.
+    Two entries change in what they mean, not only in their SDK members. **My Access** now manages the passcode of **this lock's own passcode credential**. **Remove Device** moves from the permission call to one binding call. Everything else on this page changes only because the Config SDK moves to v3.
 
 ## What changes
 
@@ -108,57 +108,27 @@ On iOS the photo goes straight to storage rather than through the backend, and o
 
 ### My Access: passcode
 
-The passcode on this screen is the passcode of the **passcode credential bound to this lock**. That credential may also be bound to other locks, if you chose to share it. Changing the digits changes them on every lock it is on, so the screen should say which.
+The passcode on this screen belongs to the **passcode credential bound to this lock**. That credential is this lock's own, so changing the passcode here never changes it on the person's other locks.
 
 ```mermaid
 sequenceDiagram
     actor U as User
     participant A as App
     participant B as Binaryveda's backend
-    participant S as Spintly's servers
     participant C as Config SDK
     participant L as Lock hardware
 
     U->>A: Open My Access
-    A->>B: getUserAccessDetails(lockId:userId:inviteId:)<br/>Your methods, your passcode, and its credentialId
-    B->>S: NEW: GET /permissionManagementV3/v1/organisations/{orgId}/<br/>accessors/{accessorId}/credentials/{credentialId}/permissions
-    S-->>B: NEW: Every lock this passcode credential is bound to
-    A-->>U: NEW: "Changing it here also changes it on: Back door"
+    A->>B: getUserAccessDetails(lockId:userId:inviteId:)<br/>Your methods, your passcode, and this lock's passcode credentialId
     U->>A: Type a new one
     A->>C: CHANGED: addUserPasscode, updatePasscode or generateMasterPasscode<br/>(serialNumber, credentialId, ...)
     C->>L: Write it over BLE
-    A->>B: finalisePasscode(passcode:lockId:accessorId:)<br/>Record it against the credential, for every lock it is on
+    A->>B: finalisePasscode(passcode:lockId:accessorId:)<br/>Record it against this lock's passcode credential
 ```
 
 **Every passcode member takes the `credentialId` after the `serialNumber`.** `addUserPasscode` for a first passcode, `updatePasscode` to replace one, `generateMasterPasscode` for the owner's master passcode. On iOS, `updateUserPasscode` and `updateMasterPasscode` take the Android names.
 
-**To change the passcode on this lock only**, when it is shared, split it off first:
-
-```mermaid
-sequenceDiagram
-    actor U as User
-    participant A as App
-    participant B as Binaryveda's backend
-    participant S as Spintly's servers
-    participant C as Config SDK
-    participant L as Lock hardware
-
-    U->>A: Change the passcode on this lock only
-    A->>B: Your mutation
-    B->>S: NEW: POST .../accessors/{accessorId}/credential/create<br/>credentialType passcode
-    S-->>B: NEW: a new credentialId
-    B->>S: NEW: PATCH .../accessors/{accessorId}/credentials/{newCredentialId}/permissions<br/>accessPointsToAdd: this lock
-    B->>S: NEW: PATCH .../accessors/{accessorId}/credentials/{oldCredentialId}/permissions<br/>accessPointsToRemove: this lock
-    loop NEW: until the new credential is applied
-        B->>S: GET .../accessPoints/{accessPointId}/credential-permissions?accessorId={accessorId}
-    end
-    B-->>A: The new credentialId
-    A->>C: addUserPasscode(serialNumber, newCredentialId, orgId, accessorId, passcode, callback)
-    C->>L: Write it over BLE
-    A->>B: finalisePasscode(passcode:lockId:accessorId:)
-```
-
-The old passcode keeps working on the other locks. Bind the new credential before unbinding the old one, so the person is never left without a passcode on the lock.
+**The person wants the same passcode on another lock?** Set the same digits on that lock too, through its own passcode credential. They stay two separate passcodes: changing one later does not change the other.
 
 ### My Access: fingerprints
 
@@ -359,7 +329,7 @@ Voice commands can read whether a lock is locked or unlocked, read its mode, and
         A-->>U: Back to Home, with the lock gone
     ```
 
-    Only the SDK member changes. Deleting the access point removes every binding on it, so passcodes shared with the lock keep working on the other locks they are bound to.
+    Only the SDK member changes. Deleting the access point removes every binding on it. The person's passcodes on their other locks are separate credentials and are not affected.
 
     A reset through the gateway, `remoteResetDevice(serialNumber, callback)`, is planned.
 
@@ -379,7 +349,7 @@ Voice commands can read whether a lock is locked or unlocked, read its mode, and
         A-->>U: Back to Home
     ```
 
-    The same call an owner uses to remove someone from one lock in [User Management](user-management.md#6-managing-users-afterwards), with the person's own `accessorId`. A passcode they share with another lock keeps working there.
+    The same call an owner uses to remove someone from one lock in [User Management](user-management.md#6-managing-users-afterwards), with the person's own `accessorId`. Their passcodes on other locks are separate credentials and keep working.
 
 ## 9. About Lock, FAQs, Manual and Get Help <span class="chg chg-unchanged">unchanged</span> { #9-about-lock-faqs-manual-and-get-help data-toc-label="9. About Lock, FAQs, Manual and Get Help" }
 
