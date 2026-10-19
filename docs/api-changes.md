@@ -73,7 +73,7 @@ Sent when an accessor exists in an organisation and can have credentials bound.
 `POST /credentialManagementV3/v1/accessors` and `POST /credentialManagementV3/v1/organisations/{orgId}/accessors/{accessorId}` are the calls you make today. Two things change in what they do:
 
 - **They return the person's credentials**, one per access type enabled in the request's access settings. Store every `credentialId`.
-- **Every credential issued in the call is bound to each lock in `accessPointsToAdd`.** That is how a person gets their first lock in a property: app access, passcode, and fingerprint if enabled, in one call.
+- **Every credential issued in the call is bound to each lock in `accessPointsToAdd`.** That is how a person gets their first lock in a property: app access, passcode, and fingerprint if enabled, in one call. `addAllAccessPoints: true` does the same for every lock in the organisation.
 
 ```json
 {
@@ -195,8 +195,8 @@ GET /permissionManagementV3/v1/organisations/{orgId}/accessors/{accessorId}/cred
     "credentialId": 700000001,
     "credentialType": "passcode",
     "accessPoints": [
-      { "accessPointId": 4567, "scheduleId": null, "status": "in_sync" },
-      { "accessPointId": 4568, "scheduleId": 88,   "status": "add_pending" }
+      { "accessPointId": 4567, "status": "in_sync" },
+      { "accessPointId": 4568, "status": "add_pending" }
     ]
   }
 }
@@ -217,16 +217,13 @@ GET /permissionManagementV3/v1/organisations/{orgId}/accessPoints/{accessPointId
   "message": {
     "accessPointId": 4567,
     "credentials": [
-      { "accessorId": 107968, "credentialId": 900000011, "credentialType": "mobile_ble_nfc", "scheduleId": null, "status": "in_sync" },
-      { "accessorId": 107968, "credentialId": 700000001, "credentialType": "passcode",       "scheduleId": null, "status": "add_pending" }
+      { "accessorId": 107968, "credentialId": 900000011, "credentialType": "mobile_ble_nfc", "status": "in_sync" },
+      { "accessorId": 107968, "credentialId": 700000001, "credentialType": "passcode",       "status": "add_pending" }
     ]
   }
 }
 ```
 
-!!! warning "The two GET calls are new"
-
-    The response shapes above are what is being built. Field names may still be adjusted before release, see [Still to be confirmed](pending.md).
 
 ### When a binding reaches the lock
 
@@ -247,6 +244,7 @@ A binding you removed stays in the list as `delete_pending` until the lock has d
 1. Call `GET …/accessPoints/{accessPointId}/credential-permissions?accessorId={accessorId}`.
 2. Find the entry for that `credentialId`. If it is `add_pending`, call again after a short wait, every 2 seconds as your `getLock` polling does.
 3. Once it is `in_sync`, call the SDK: `generateMasterPasscode`, `addUserPasscode` or `performFPEnrollmentOnDevice`. Call `passcode/generate` only then as well.
+4. **Stop after 60 seconds.** If it is still `add_pending` by then, tell the user the lock is not ready yet and offer to try again. A binding that takes this long is a fault on Spintly's side, which Spintly retries and is alerted to; there is nothing for your app to fix.
 
 A credential that was already on the lock, such as a passcode being changed in My Access, is already `in_sync`, so there is nothing to wait for.
 
@@ -286,13 +284,13 @@ They can also be sent in the access settings of the accessor create and add-to-o
     "orgId": 123,
     "accessorId": 107968,
     "credentials": [
-      { "type": "fingerprint", "credentialId": 44389500, "format": "32_bit", "status": 1 }
+      { "credentialType": "fingerprint", "credentialId": 44389500 }
     ]
   }
 }
 ```
 
-Each entry is the same object the accessor call returns under `credentialTypes`. Store the `credentialId`, then bind it. `credentials` is empty when the request enables no credential type, for example one that only changes `dualAuth`.
+Each entry carries the `credentialType` and the `credentialId`. Store the `credentialId`, then bind it. `credentials` is empty when the request enables no credential type, for example one that only changes `dualAuth`.
 
 ## Passcodes and schedules
 

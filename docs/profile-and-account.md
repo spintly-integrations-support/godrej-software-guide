@@ -298,14 +298,10 @@ A property created after the change is on the new model from the start. Nothing 
 
 ## Properties that already exist
 
-Properties onboarded before the change stay on the one-lock model until they are **moved**. Spintly moves them, property by property, at a time agreed with you. A move is meant to carry over everything that works today: the owner's passcode, fingerprints and cards, and every invited user's access. The exact steps on your side will be agreed before the first one.
+Properties onboarded before the change stay on the one-lock model until they are **moved**. Moving a property gives every person in it **new credentials** for the access methods they have, replacing the old ones on the locks. How a move runs, what it means for each person's passcode, fingerprints and cards, and what your app has to do, is being designed separately and will be agreed with you before any property is moved.
 
 Until a property has been moved:
 
 - it keeps working exactly as today, on today's calls
 - the new calls on these pages are refused for it
 - a second lock should not be added to it
-
-!!! note "What you need before a property is moved"
-
-    For each person in the property, the `credentialId` of their passcode. If you did not store the credentials returned when the accessor was created, read them with `GET .../accessors/{accessorId}/credential` (see [Spintly API changes](api-changes.md#reading-a-persons-credentials)) and store them against the lock.
