@@ -12,14 +12,14 @@
 |---|---|---|
 | 1. Lock Details | <span class="chg chg-unchanged">unchanged</span> | |
 | 2. My Access | <span class="chg chg-changed">changed</span> | Passcode members take the `credentialId`. The screen shows which other locks the passcode opens. Fingerprints are read and deleted at Spintly, not over BLE |
-| 3. Hardware Settings | <span class="chg chg-changed">changed</span> | Config SDK v3 members take the `serialNumber`. `setDoorbellTone` becomes `updateDoorbellTone` |
+| 3. Hardware Settings | <span class="chg chg-changed">changed</span> | Config SDK v3 members take the `serialNumber`. `setDoorbellTone` becomes `updateDoorbellTone`. New `getBatteryStatus` |
 | 4. Accessories | <span class="chg chg-changed">changed</span> | Config SDK v3 beacon members |
 | 5. Firmware Update | <span class="chg chg-changed">changed</span> | `firmwareUpdate`, then `updateToFirmwareVersion` |
 | 6. System Integrators | <span class="chg chg-unchanged">unchanged</span> | |
 | 7. Voice Assistants | <span class="chg chg-unchanged">unchanged</span> | |
-| 8. Factory Reset and Remove Device | <span class="chg chg-changed">changed</span> | Factory Reset: `resetDevice(serialNumber, …)`. Remove Device: one binding call |
+| 8. Factory Reset and Remove Device | <span class="chg chg-changed">changed</span> | Factory Reset: `resetDevice(serialNumber, …)`, or `remoteResetDevice` from the cloud. Remove Device: one binding call |
 | 9. About Lock, FAQs, Manual and Get Help | <span class="chg chg-unchanged">unchanged</span> | |
-| The Wi-Fi Gateway | <span class="chg chg-changed">changed</span> | `resetGateway` now resets **through the server**. A BLE reset is planned under a new name |
+| The Wi-Fi Gateway | <span class="chg chg-changed">changed</span> | The Bluetooth reset is now `resetGatewayOverBle`; `resetGateway` resets **through the server** |
 
 ## Participants
 
@@ -154,6 +154,15 @@ sequenceDiagram
     end
 ```
 
+**Pick the delete by where the phone is.** The two calls do the same job by different routes:
+
+| The phone is | Call | When the finger stops working |
+|---|---|---|
+| Next to the lock | `deleteFingerprintTemplateOverBle(serialNumber, organisationId, targetAccessorId, templateDataId, callback)`: removes it from the lock over Bluetooth, then from Spintly's servers | Straight away |
+| Away from the lock | `deleteFingerprintTemplatePermission(organisationId, targetAccessorId, templateDataId, callback)`: removes it on Spintly's servers | When the lock next syncs |
+
+If the Bluetooth delete cannot find the lock (`5/22`), fall back to `deleteFingerprintTemplatePermission` with the same `templateDataId`.
+
 Your screen's notes, that the list "needs the phone near the lock" and that deleting "goes from the lock, not a server", are no longer true. The four-template cap on the lock is unchanged.
 
 **The list covers all of the person's locks.** Each fingerprint in it carries the `accessPointId` of the lock it was enrolled on, because a finger enrolled on one lock works only there. Show only the entries for the lock being viewed. Deleting one removes that fingerprint from its own lock and leaves the person's other locks alone. What each fingerprint action does is summed up in [One fingerprint credential, many fingers](lock-onboarding.md#one-fingerprint-credential-many-fingers).
@@ -196,6 +205,8 @@ sequenceDiagram
     The timeout alerts are in **seconds, 3 to 30**, both when written and when read back (`getTamperAlarmTimeout()`, `getPrankAlarmTimeout()` and `getDOTLTimeInterval()` all return seconds). Your page describes them in minutes, so check the labels and the values your screens send. A value outside 3 to 30 fails with `10/22` to `10/24`.
 
 A voice package is at most 220 KB, and its hash is MD5.
+
+**Battery level.** `getBatteryStatus(serialNumber, callback)` reads the lock's battery level, `0` to `100` percent, over Bluetooth, so the phone must be near the lock. It **depends on the lock's firmware**: a lock on firmware that does not report its battery cannot answer, so treat a failure as "battery level not available" rather than as an error, and keep showing what your backend already knows.
 
 
 ### Changing the lock's audio language
@@ -331,7 +342,7 @@ Voice commands can read whether a lock is locked or unlocked, read its mode, and
 
     Only the SDK member changes. Deleting the access point removes every binding on it. The person's passcodes on their other locks are separate credentials and are not affected.
 
-    A reset through the gateway, `remoteResetDevice(serialNumber, callback)`, is planned.
+    **If the lock cannot be reached over Bluetooth**, `remoteResetDevice(serialNumber, callback)` resets it from the cloud, through its gateway, so the phone does not need to be near it. Try `resetDevice` first; whether to fall back automatically or offer it to the user is your app's choice. If both fail, the lock is out of range and its gateway cannot reach it.
 
 === "Remove Device"
 
@@ -418,9 +429,13 @@ sequenceDiagram
         A->>B: updateGatewayFirmwareStatus
     else Factory Reset
         U->>A: Confirm
-        A->>C: CHANGED: resetGateway(serialNumber, resetBluetooth, resetWifi, callback)
-        C->>S: Reset through the server, no longer over BLE
-        S->>G: Wipe it
+        A->>C: CHANGED: resetGatewayOverBle(serialNumber, resetBluetooth, resetWifi, callback)
+        C->>G: Wipe it over BLE, with the phone next to it
+        opt Only if the Bluetooth reset failed
+            A->>C: CHANGED: resetGateway(serialNumber, resetBluetooth, resetWifi, callback)
+            C->>S: Reset through the server
+            S->>G: Wipe it
+        end
         A->>B: removeGateway
         B->>S: DELETE /infrastructureManagement/internal/v1/<br/>gateways/{serialNumber}
     end
@@ -430,11 +445,11 @@ sequenceDiagram
 |---|---|---|
 | Networks and credentials | `getWifiNetworks`, `configureWifiNetwork` | Same names, `(serialNumber, …)` |
 | Gateway software | `getListOfSoftwareForGatewaySerialNumber`, `gatewaySoftwareUpdateToSelectedVersion` | Same names |
-| Reset | `resetGateway`, over BLE | **`resetGateway(serialNumber, resetBluetooth, resetWifi, callback)` now resets through the server.** A BLE reset is planned as `resetGatewayOverBle` |
+| Reset | `resetGateway`, over BLE | **`resetGatewayOverBle(serialNumber, resetBluetooth, resetWifi, callback)`** resets over BLE. **`resetGateway(serialNumber, resetBluetooth, resetWifi, callback)`** now resets through the server |
 
 !!! warning "Same name, opposite route"
 
-    Your gateway factory reset calls `resetGateway` over BLE and then `removeGateway`. In v3 the same name sends the reset through the server instead. Keep that in mind when you move to v3, until `resetGatewayOverBle` ships.
+    Your gateway factory reset calls `resetGateway` over BLE and then `removeGateway`. In v3 the Bluetooth reset is **`resetGatewayOverBle`**, and the old name `resetGateway` resets through the server instead. Call `resetGatewayOverBle` first: a gateway is usually reset because its network has gone wrong, and then the server cannot reach it. Fall back to `resetGateway` only if Bluetooth fails.
 
 ## Differences between the two
 
@@ -455,15 +470,18 @@ Config SDK v3, Android form. All of them need `setAuthToken` and `initiateSdk()`
 | `updatePasscode(serialNumber, credentialId, orgId, accessorId, oldPasscode, newPasscode, callback)` | My Access | Replace one |
 | `generateMasterPasscode(serialNumber, credentialId, orgId, accessorId, oldPasscode, newPasscode, callback)` | My Access | Replace the owner's master passcode |
 | `getFingerprintPermissions(orgId, accessorId)` | My Access | List the person's fingerprints, from the server |
-| `deleteFingerprintTemplatePermission(orgId, accessorId, templateDataId)` | My Access | Delete one at the server. The lock drops it on its next sync |
-| `deleteFingerprintTemplateOverBle(serialNumber, organisationId, targetAccessorId, templateDataId, callback)` | My Access | Delete one from the lock now, then the server. Open point in the SDK |
+| `deleteFingerprintTemplatePermission(orgId, accessorId, templateDataId)` | My Access | Delete one at the server when the phone is away from the lock. The lock drops it on its next sync |
+| `deleteFingerprintTemplateOverBle(serialNumber, organisationId, targetAccessorId, templateDataId, callback)` | My Access | Delete one over Bluetooth when the phone is next to the lock: from the lock now, then the server |
 | `readSoundSettings`, `updateLockSoundSettings` | Sound | `(serialNumber, …)` |
 | `readLEDIntensitySettings`, `updateLEDIntensitySettings` | Lights | `(serialNumber, …)` |
 | `readTimeoutAlertSettings`, `updateTamperAlarmSettings`, `updatePrankAlarmSettings`, `updateDOTLSettings` | Timeout Alerts | `(serialNumber, …)` |
 | `getCurrentLanguageAndDoorbellTone`, `updateVoicePackage`, `updateDoorbellTone` | Lock Audio and Door Bell | `(serialNumber, …)` |
+| `getBatteryStatus(serialNumber, callback)` | Hardware Settings | Battery level, 0 to 100, over BLE. Depends on the lock's firmware |
 | `firmwareUpdate`, `updateToFirmwareVersion` | Firmware Update, and accessories | Versions, then the transfer |
 | `startBleBeaconScan`, `stopScan`, `attachBeacon`, `resetBeacon` | Accessories | Find, attach, wipe |
-| `resetDevice(serialNumber, callback)` | Factory Reset | Wipe the lock |
+| `resetDevice(serialNumber, callback)` | Factory Reset | Wipe the lock over Bluetooth |
+| `remoteResetDevice(serialNumber, callback)` | Factory Reset | Wipe the lock from the cloud, through its gateway, when Bluetooth cannot reach it |
 | `getWifiNetworks`, `configureWifiNetwork` | Gateway | `(serialNumber, …)` |
 | `getListOfSoftwareForGatewaySerialNumber`, `gatewaySoftwareUpdateToSelectedVersion` | Gateway | Unchanged |
-| `resetGateway(serialNumber, resetBluetooth, resetWifi, callback)` | Gateway | Reset through the server |
+| `resetGatewayOverBle(serialNumber, resetBluetooth, resetWifi, callback)` | Gateway | Reset over BLE, with the phone next to the gateway. Try this first |
+| `resetGateway(serialNumber, resetBluetooth, resetWifi, callback)` | Gateway | Reset through the server, if the Bluetooth reset failed |

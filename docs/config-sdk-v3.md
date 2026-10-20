@@ -45,18 +45,18 @@ A newer setup, `setConfiguration`, `setTokenRefreshHandler`, `logIn`, `logOut`, 
 | Entry | Today | v3 | Notes |
 |---|---|---|---|
 | My Access, passcode | `addUserPasscode`, iOS `updateUserPasscode` / Android `updatePasscode`, iOS `updateMasterPasscode` / Android `generateMasterPasscode` | `addUserPasscode`, `updatePasscode`, `generateMasterPasscode`, each with `credentialId` after `serialNumber` | |
-| My Access, fingerprints | `getFingerprintPermissions`, over BLE. `deleteFingerprintTemplatePermission`, from the lock | `getFingerprintPermissions(orgId, accessorId)`, from the server. `deleteFingerprintTemplatePermission(orgId, accessorId, templateDataId)`, at the server. **New, open point:** `deleteFingerprintTemplateOverBle(serialNumber, organisationId, targetAccessorId, templateDataId, callback)`, from the lock now and then the server | Neither list nor delete needs the phone nearby any more |
+| My Access, fingerprints | `getFingerprintPermissions`, over BLE. `deleteFingerprintTemplatePermission`, from the lock | `getFingerprintPermissions(orgId, accessorId)`, from the server. `deleteFingerprintTemplatePermission(orgId, accessorId, templateDataId)`, at the server. **New:** `deleteFingerprintTemplateOverBle(serialNumber, organisationId, targetAccessorId, templateDataId, callback)`, from the lock now and then the server | Use the Bluetooth delete when the phone is next to the lock, the server delete when it is away |
 | Sound | `readSoundSettings`, `updateLockSoundSettings` | Same names, `(serialNumber, …)` | 0 to 5 |
 | Lights | `readLEDIntensitySettings`, `updateLEDIntensitySettings` | Same names, `(serialNumber, …)` | 1 to 5 |
 | Timeout alerts | `readTimeoutAlertSettings`, `updateTamperAlarmSettings`, `updatePrankAlarmSettings`, `updateDOTLSettings` | Same names, `(serialNumber, …)` | 3 to 30 **seconds** |
 | Lock audio and door bell | `getCurrentLanguageAndDoorbellTone`, `updateVoicePackage`, `setDoorbellTone` | `getCurrentLanguageAndDoorbellTone`, `updateVoicePackage(serialNumber, …)`, **`updateDoorbellTone`** | 220 KB, MD5 |
 | Accessories | `beaconStartScan`, `setBeaconTargetDevice`, `beaconStopScan`, `startBeaconAttach`, `getListOfFirmwareForBeacon`, `resetBeacon` | `startBleBeaconScan`, `stopScan`, `attachBeacon(serialNumberOfDevice, scannedBleDevice, callback)`, `firmwareUpdate(scannedBleDevice, callback)` + `updateToFirmwareVersion`, `resetBeacon(scannedBleDevice, callback)`. Factory-fresh beacons first need the force update: `startDfuDevicesScan`, `firmwareUpdateForDfuBeacon`, `updateToFirmwareVersionForDfuBeacon` | Already paired is `2/36` |
 | Firmware update | As Lock Onboarding step 6 | As Lock Onboarding step 6 | |
-| Factory reset | `resetDevice` | `resetDevice(serialNumber, callback)` | Planned fallback through the gateway: `remoteResetDevice(serialNumber, callback)` |
+| Factory reset | `resetDevice` | `resetDevice(serialNumber, callback)`; **new** `remoteResetDevice(serialNumber, callback)` resets from the cloud through the gateway | Try `resetDevice` first, `remoteResetDevice` when Bluetooth cannot reach the lock |
 | Gateway Wi-Fi | `getWifiNetworks`, `configureWifiNetwork` | Same names, `(serialNumber, …)` | |
 | Gateway software | `getListOfSoftwareForGatewaySerialNumber`, `gatewaySoftwareUpdateToSelectedVersion` | `getListOfSoftwareForGatewaySerialNumber(serialNumber, callback)`, `gatewaySoftwareUpdateToSelectedVersion(serialNumber, updateToVersion, callback)` | Open point in the SDK guide |
-| Battery | None | **New, open point:** `getBatteryStatus(serialNumber, callback)`, percent 0 to 100 | Read from the lock over BLE |
-| Gateway reset | `resetGateway`, over BLE | **`resetGateway(serialNumber, resetBluetooth, resetWifi, callback)`, through the server.** Planned: `resetGatewayOverBle(serialNumber, resetBluetooth, resetWifi, callback)`, to try first | The name now means the other route |
+| Battery | None | **New:** `getBatteryStatus(serialNumber, callback)`, percent 0 to 100 | Read from the lock over BLE. Depends on the lock's firmware |
+| Gateway reset | `resetGateway`, over BLE | **`resetGateway(serialNumber, resetBluetooth, resetWifi, callback)`, through the server.** **New:** `resetGatewayOverBle(serialNumber, resetBluetooth, resetWifi, callback)` resets over BLE, to try first | `resetGateway` now means the server route |
 
 ## Error codes worth handling
 
