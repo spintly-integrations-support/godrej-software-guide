@@ -53,7 +53,7 @@ Both are described in [Spintly API changes](api-changes.md).
 
 Diagrams that differ between platforms are split into **iOS** and **Android** tabs, linked across the site, as on yours. Where the change is the same on both, there is one diagram and no tabs.
 
-Config SDK v3 signatures are shown in their Android form. The iOS members are expected to take the same arguments in the same order, and are listed in [Still to be confirmed](pending.md) until they are published.
+Config SDK v3 signatures are shown in their Android form. The iOS members take the same arguments in the same order.
 
 ## Where the request bodies are
 

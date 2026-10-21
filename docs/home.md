@@ -6,7 +6,7 @@
 
     Nothing in the calls changes. What decides which locks a person sees does: see [What a lock on Home now depends on](#what-a-lock-on-home-now-depends-on) at the end of this page.
 
-    Pending a final confirmation from the SDK team that no Access SDK member changes, see [Still to be confirmed](pending.md).
+    The Access SDK does not change.
 
     The flow is shown in full, as it runs today, so the page reads end to end on its own.
 

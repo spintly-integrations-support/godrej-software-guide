@@ -6,7 +6,7 @@
 
     Nothing in this flow changes. It uses the OAuth SDK and the Access SDK, which stay as they are, plus the Config SDK set-up, which gains one call in v3 (see the note under App launch).
 
-    Pending a final confirmation from the SDK team that no Access SDK member changes, see [Still to be confirmed](pending.md).
+    The Access SDK does not change.
 
     The flow is shown in full, as it runs today, so the page reads end to end on its own.
 

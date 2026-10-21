@@ -6,7 +6,7 @@
 
     Nothing on this page changes. Its two Spintly actions, the unlock and privacy mode, are Access SDK calls that stay as they are.
 
-    Pending a final confirmation from the SDK team that no Access SDK member changes, see [Still to be confirmed](pending.md).
+    The Access SDK does not change.
 
     The flow is shown in full, as it runs today, so the page reads end to end on its own.
 

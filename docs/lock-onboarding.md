@@ -295,7 +295,7 @@ sequenceDiagram
     end
 ```
 
-`updateToVer` is `getPdSwVer()` of the version picked from `firmwareUpdate`'s list. Until the next major SDK version this call is still named `updateToFwVersion`, with the same arguments.
+`updateToVer` is `getPdSwVer()` of the version picked from `firmwareUpdate`'s list. It replaces today's `firmwareUpdateToSelectedVersion`.
 
 If you always want a minimum version during onboarding, `configureDeviceWithMinimumFirmware(serialNumber, minimumFirmwareVersion, callback)` does steps 5 and 6 in one call. `minimumFirmwareVersion` is an `int` in the same form as `getPdSwVer()`, for example `66816` for `01.05.00`.
 
@@ -462,7 +462,7 @@ The v3 Config SDK removes several of today's differences.
 
 ## Every SDK member this flow uses
 
-Config SDK v3, Android form. iOS is expected to match, see [Still to be confirmed](pending.md).
+Config SDK v3, Android form. The iOS members take the same arguments in the same order.
 
 | SDK | Member | When | What it is for |
 |---|---|---|---|
@@ -473,7 +473,7 @@ Config SDK v3, Android form. iOS is expected to match, see [Still to be confirme
 | Config | `stopScan(callback)` | Scan | Stop the scan |
 | Config | `configureDevice(serialNumber, SpintlyCompletionAndFirmwareUpdateStatusCallback)` | Provisioning | Provision the lock, updating old firmware first |
 | Config | `firmwareUpdate(serialNumber, callback)` | Firmware check | Read installed and available versions |
-| Config | `updateToFirmwareVersion(updateToVer, FirmwareUpdateCallback)` | Firmware update | Push the new firmware. `updateToFwVersion` until the next major SDK version |
+| Config | `updateToFirmwareVersion(updateToVer, FirmwareUpdateCallback)` | Firmware update | Push the new firmware. Replaces `firmwareUpdateToSelectedVersion` |
 | Config | `configureDeviceWithMinimumFirmware(serialNumber, minimumFirmwareVersion, callback)` | Provisioning, optional | Steps 5 and 6 in one call |
 | Config | `generateMasterPasscode(serialNumber, credentialId, orgId, accessorId, oldPasscode, newPasscode, KeypadManagerCallback)` | Master passcode | Write the master passcode for this lock's passcode credential |
 | Config | `performFPEnrollmentOnDevice(serialNumber, credentialId, orgId, accessorId, templateName, 19, FingerprintManagerCallback)` | Fingerprint | Enrol a finger for the fingerprint credential |

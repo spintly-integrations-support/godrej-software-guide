@@ -75,4 +75,4 @@ The new and changed Spintly endpoints are collected in [Spintly API changes](api
 
 !!! warning "Some names are still provisional"
 
-    The Config SDK v3 member names, the iOS signatures and a few details are still being confirmed. Each one is marked where it appears, and all of them are listed in [Still to be confirmed](pending.md).
+    A few Config SDK v3 members and details are still being confirmed. Each one is marked where it appears, and all of them are listed in [Still to be confirmed](pending.md).
