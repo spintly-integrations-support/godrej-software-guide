@@ -338,7 +338,7 @@ The new passcode applies to **this lock only**, because this lock's passcode cre
 
 ### Fingerprint
 
-**Make sure the person has a fingerprint credential, bind it, wait until it is `in_sync`, then enrol.** The fingerprint credential has to be on the lock before a finger is enrolled for it. Enrolling before the credential is bound and `in_sync` on this lock fails with `6/46`. A finger is never enrolled on a lock where it would not open the door, so the result's `isAccessorHasPermissionOnEnrollmentDevice()` is always `true`.
+**Make sure the person has a fingerprint credential, bind it, wait until it is `in_sync`, then enrol.** The fingerprint credential has to be on the lock before a finger is enrolled for it. Enrolling before the credential is bound and `in_sync` on this lock fails with `6/46`. A finger is never enrolled on a lock where it would not open the door.
 
 **A person may not have a fingerprint credential yet.** It is only created when fingerprint is enabled on their access settings. If fingerprint was not enabled when their accessor was created, there is no fingerprint credential until you enable it:
 
@@ -396,7 +396,7 @@ Unlike passcodes, a person never needs a second fingerprint credential. A passco
 
 `credential/create` therefore does not create fingerprint credentials. Bind the one the person already has.
 
-**The timeout drops to 19 seconds**, from 60. ImageMatch fingerprint devices need a real `credentialId`, greater than 0. The SDK no longer needs `scanAndConnectFingerprintDevice` or `fingerprintClose()`.
+**The timeout drops to 19 seconds**, from 60. Always pass the person's fingerprint `credentialId`. The SDK no longer needs `scanAndConnectFingerprintDevice` or `fingerprintClose()`.
 
 ### RFID
 
