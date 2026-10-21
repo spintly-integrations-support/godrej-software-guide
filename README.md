@@ -1,4 +1,4 @@
-# Godrej software guide: multiple locks & passcodes
+# IOT9 Consumer App Guide
 
 Change notes for the IoT9 B2C integration, following the structure of Binary Veda's own
 documentation site page by page.

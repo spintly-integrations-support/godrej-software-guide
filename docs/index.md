@@ -1,4 +1,4 @@
-# Multiple Locks & Passcodes
+# IOT9 Consumer App Guide
 
 What changes in the IoT9 B2C flows so that one property can hold **several locks**, and one person can hold **several passcodes**: one for each lock.
 
