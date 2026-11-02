@@ -12,7 +12,7 @@ Access is still granted **per lock**, and inviting the same person to a second l
 
 | Section | | What changes |
 |---|---|---|
-| 1. Creating the invite | <span class="chg chg-changed">changed</span> | Primary, secondary and one time: unchanged. Scheduled: bind first, then the schedule, then `passcode/generate` with a `credentialId`. A scheduled user has one generated passcode for all their locks |
+| 1. Creating the invite | <span class="chg chg-changed">changed</span> | Primary, secondary and one time: unchanged. Scheduled: bind first, then the schedule, then `passcode/generate`. A scheduled user has one generated passcode for all their locks |
 | 2. Sharing the invite | <span class="chg chg-unchanged">unchanged</span> | |
 | 3. Accepting the invite | <span class="chg chg-changed">changed</span> | The lock goes on the accessor call, or credentials are bound. No permission call |
 | 4. Setting the passcode | <span class="chg chg-changed">changed</span> | `addUserPasscode` takes the `credentialId` bound to this lock |
@@ -129,10 +129,10 @@ sequenceDiagram
 
 ### Scheduled <span class="chg chg-changed">changed</span> { #scheduled data-toc-label="Scheduled" }
 
-Today the schedule is created and assigned first, then `passcode/generate` runs. Two things change:
+Today the schedule is created and assigned first, then `passcode/generate` runs. Three things change:
 
 - **A schedule only attaches to credentials that are on the lock.** Assigning a schedule to a person on a lock where they have no credential bound fails with `400 "No credentials are bound to this access point for this user"`. So the person's credentials go on the lock **first**.
-- **A generated passcode belongs to a passcode credential.** `passcode/generate` now takes the `credentialId` whose digits it sets.
+- **A generated passcode belongs to the person's passcode credential.** `passcode/generate` keeps today's request, without a `credentialId`, and sets the digits of the person's single passcode credential, which must be bound to the lock first.
 - **A scheduled user has one generated passcode for all their locks.** Their single passcode credential is bound to every lock they are scheduled on, and `passcode/generate` runs once, on the first. Unlike other users, they do not get a separate passcode per lock.
 
 ```mermaid
@@ -155,7 +155,7 @@ sequenceDiagram
     B->>S: POST /permissionManagementV3/v1/organisations/{orgId}/<br/>schedules/user/assign<br/>This person, this lock
     opt Passcode was granted, and this is their first scheduled lock
         B->>S: NEW: GET .../accessPoints/{accessPointId}/credential-permissions?accessorId=<br/>until the passcode credential is in_sync
-        B->>S: CHANGED: POST /permissionManagementV3/v1/organisations/{orgId}/<br/>passcode/generate<br/>accessorId, size, and the passcode credentialId
+        B->>S: POST /permissionManagementV3/v1/organisations/{orgId}/<br/>passcode/generate<br/>accessorId, size
         S-->>B: The passcode
     end
     B-->>A: inviteId

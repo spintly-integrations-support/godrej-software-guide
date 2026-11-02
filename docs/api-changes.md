@@ -20,7 +20,7 @@ All Permission Management paths are under `/permissionManagementV3`, all Credent
 | <span class="chg chg-new">new</span> | `PATCH …/accessPoints/{accessPointId}/credential-permissions` | Lock Onboarding 4, User Management, Lock Settings |
 | <span class="chg chg-new">new</span> | `GET …/accessPoints/{accessPointId}/credential-permissions` | User Management, Lock Settings |
 | <span class="chg chg-changed">changed</span> | `PATCH …/accessor/{accessorId}/accessSettings`: `dualAuth` and `adminRole`, and returns the credentials of the types it enables | Lock Onboarding 1 and 8, User Management 1 and 6 |
-| <span class="chg chg-changed">changed</span> | `POST …/passcode/generate`: `credentialId` | User Management 1 |
+| <span class="chg chg-changed">changed</span> | `POST …/passcode/generate`: request unchanged; the person's passcode credential must be bound to the lock first | User Management 1 |
 | <span class="chg chg-changed">changed</span> | `POST …/schedules/user/device` and `PATCH …/schedules/user/device/{scheduleId}`: schedule type, up to 5 sections with up to 4 times each | User Management 1, 6 |
 | <span class="chg chg-changed">changed</span> | `POST …/schedules/user/assign`: needs credentials on the lock; one schedule per person per lock, a new one replaces it | User Management 1, 6 |
 | <span class="chg chg-new">new</span> | `POST …/schedules/user/composite`: several schedules for one person on a lock, combined by `mergePolicy` | User Management 1, 6 |
@@ -336,12 +336,15 @@ POST /permissionManagementV3/v1/organisations/{orgId}/passcode/generate
 ```
 
 ```json
-{ "accessorId": 107968, "size": 6, "credentialId": 700000002 }
+{ "accessorId": 107968, "size": 6 }
 ```
 
-`credentialId` is new and required: the passcode credential the generated digits belong to. It must already be bound to the lock. Generating again for the same credential changes its digits on **every** lock it is bound to.
+The request is unchanged: no `credentialId`. A scheduled user has **one** passcode credential, and the generated passcode belongs to it. Two rules are new:
 
-A scheduled user has one generated passcode for all their locks: generate it once, on their first lock, and bind the same passcode credential to every further lock. It works there without generating again.
+- **Bind it first.** The person's passcode credential must be bound to the lock before you generate.
+- **One passcode credential only.** Generating for a person who holds no passcode credential, or more than one, fails with `400`. Do not issue a scheduled user a second passcode credential with `credential/create`.
+
+Generate once, on the person's first lock, and bind the same passcode credential to every further lock: the passcode works there without generating again. Generating again changes it on **every** lock it is bound to.
 
 ### Creating a schedule: `schedules/user/device`
 
