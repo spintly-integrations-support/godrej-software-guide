@@ -10,6 +10,8 @@ All Permission Management paths are under `/permissionManagementV3`, all Credent
 |---|---|---|
 | <span class="chg chg-changed">changed</span> | Kafka `resource_alive`, now for sites, networks and access points too | Lock Onboarding 1, 4 |
 | <span class="chg chg-new">new</span> | Kafka `accessor_ready` | Lock Onboarding 1, User Management 3 |
+| <span class="chg chg-new">new</span> | Kafka `resource_unalive`: a deleted resource is gone, for every resource | Lock Settings 8, Profile and Account 4 |
+| <span class="chg chg-changed">changed</span> | `PATCH …/organisations/{orgId}/accessSettings`: set once per organisation, now with `dualAuth` and `adminRole` | Lock Onboarding 1 |
 | <span class="chg chg-changed">changed</span> | `POST /credentialManagementV3/v1/accessors` and `POST …/organisations/{orgId}/accessors/{accessorId}`: credentials returned, and bound to `accessPointsToAdd` | Lock Onboarding 1, 4, User Management 3 |
 | <span class="chg chg-new">new</span> | `GET …/accessors/{accessorId}/credential` | Wherever a `credentialId` is needed again |
 | <span class="chg chg-new">new</span> | `POST …/accessors/{accessorId}/credential/create` | Lock Onboarding 4, User Management, Lock Settings |
@@ -19,7 +21,9 @@ All Permission Management paths are under `/permissionManagementV3`, all Credent
 | <span class="chg chg-new">new</span> | `GET …/accessPoints/{accessPointId}/credential-permissions` | User Management, Lock Settings |
 | <span class="chg chg-changed">changed</span> | `PATCH …/accessor/{accessorId}/accessSettings`: `dualAuth` and `adminRole`, and returns the credentials of the types it enables | Lock Onboarding 1 and 8, User Management 1 and 6 |
 | <span class="chg chg-changed">changed</span> | `POST …/passcode/generate`: `credentialId` | User Management 1 |
-| <span class="chg chg-changed">changed</span> | `POST …/schedules/user/assign`: needs credentials on the lock, one schedule per lock | User Management 1, 6 |
+| <span class="chg chg-changed">changed</span> | `POST …/schedules/user/device` and `PATCH …/schedules/user/device/{scheduleId}`: schedule type, up to 5 sections with up to 4 times each | User Management 1, 6 |
+| <span class="chg chg-changed">changed</span> | `POST …/schedules/user/assign`: needs credentials on the lock; one schedule per person per lock, a new one replaces it | User Management 1, 6 |
+| <span class="chg chg-new">new</span> | `POST …/schedules/user/composite`: several schedules for one person on a lock, combined by `mergePolicy` | User Management 1, 6 |
 | <span class="chg chg-changed">changed</span> | `PATCH …/accessors/{accessorId}/permissions` and `PATCH …/accessPoints/{accessPointId}/permissions`: **refused** | Replaced everywhere |
 
 ## Kafka
@@ -65,6 +69,23 @@ Sent when an accessor exists in an organisation and can have credentials bound.
 ```
 
 **For both messages:** handle them idempotently, since the same message can arrive twice, and ignore a `msgType` you do not know rather than retrying it.
+
+### `resource_unalive`
+
+The counterpart of `resource_alive`: sent once per resource when it has been deleted and every Spintly service has let go of it. `resourceName` takes the same values: `organisations`, `sites`, `networks`, `gateways`, `access_points`. Same envelope:
+
+```json
+{
+  "messageVersion": 1,
+  "messageData": {
+    "msgType": "resource_unalive",
+    "dataVersion": 1,
+    "data": { "resourceId": 4567, "resourceName": "access_points" }
+  }
+}
+```
+
+Remove the resource on your side when it arrives, and handle it idempotently. See [Resources and permissions](resources.md#readiness-and-removal-signals).
 
 ## Credentials
 
@@ -138,7 +159,7 @@ POST /permissionManagementV3/v1/organisations/{orgId}/accessors/{accessorId}/cre
 }
 ```
 
-Use it for the passcode of every lock after the person's first: each lock needs its own passcode credential. It does not create app or fingerprint credentials: a person has exactly one of each, issued with the accessor or when the type is first enabled. Cards are not created here, they are assigned at the lock by the Config SDK.
+Use it for the passcode of every lock after the person's first: each lock needs its own passcode credential. Scheduled users are the exception: they keep one passcode credential, bound to all their locks. It does not create app or fingerprint credentials: a person has exactly one of each, issued with the accessor or when the type is first enabled. Cards are not created here, they are assigned at the lock by the Config SDK.
 
 There is no limit on how many passcodes a person can hold. Apply any limit you want in your backend, before calling.
 
@@ -254,6 +275,20 @@ The app credential behaves slightly differently from the others. Binding **any**
 
 ## Access settings
 
+### The organisation's
+
+```
+PATCH /permissionManagementV3/v1/organisations/{orgId}/accessSettings
+```
+
+```json
+{ "mobile": true, "passcodeAccess": true, "fingerprint": true, "card": true, "tapToAccess": true, "dualAuth": true, "adminRole": true }
+```
+
+What the organisation allows, set once after the organisation's `resource_alive`. A type turned off here is off for everyone in the organisation. `dualAuth` and `adminRole` are new: each works for a person only when it is on both here and on the person. `GET` on the same path reads the values. See [Resources and permissions](resources.md#organisation).
+
+### A person's
+
 ```
 PATCH /permissionManagementV3/v1/organisations/{orgId}/accessor/{accessorId}/accessSettings
 ```
@@ -262,7 +297,7 @@ PATCH /permissionManagementV3/v1/organisations/{orgId}/accessor/{accessorId}/acc
 { "adminRole": true, "dualAuth": false }
 ```
 
-Two fields join the person's access settings. Both apply to the **person across the organisation**, on every lock they open from the app:
+Two fields join the person's access settings. Both apply to the **person across the organisation**, to every credential they have on every lock, and only while the same field is on in the organisation's access settings:
 
 | Field | Meaning |
 |---|---|
@@ -306,14 +341,92 @@ POST /permissionManagementV3/v1/organisations/{orgId}/passcode/generate
 
 `credentialId` is new and required: the passcode credential the generated digits belong to. It must already be bound to the lock. Generating again for the same credential changes its digits on **every** lock it is bound to.
 
+A scheduled user has one generated passcode for all their locks: generate it once, on their first lock, and bind the same passcode credential to every further lock. It works there without generating again.
+
+### Creating a schedule: `schedules/user/device`
+
+Schedules can now do more than one date range, one set of days and one time slot. Field names are provisional, see [Still to be confirmed](pending.md).
+
+```
+POST /permissionManagementV3/v1/organisations/{orgId}/schedules/user/device
+```
+
+```json
+{
+  "name": "Cleaner",
+  "scheduleType": "per_day",
+  "dateRange": { "start": "2026-11-01", "end": "2026-12-31" },
+  "sections": [
+    {
+      "daysOfWeek": [1, 2, 3],
+      "triggers": [
+        { "state": "allow", "time": "09:00" },
+        { "state": "deny",  "time": "13:00" },
+        { "state": "allow", "time": "14:00" },
+        { "state": "deny",  "time": "18:00" }
+      ]
+    },
+    {
+      "daysOfWeek": [4, 5],
+      "triggers": [
+        { "state": "allow", "time": "10:00" },
+        { "state": "deny",  "time": "16:00" }
+      ]
+    }
+  ]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `scheduleType` | `per_day`: access follows the sections' times. `exclusive`: access **24 hours a day** within `dateRange`; no `sections` |
+| `dateRange` | The schedule works only between `start` and `end` |
+| `sections` | Up to **5**. Each covers some days of the week, and a day belongs to at most one section. A day in no section has no access |
+| `triggers` | Up to **4** per section, in time order. `allow` opens access from that time, `deny` closes it. Two pairs give two windows in a day |
+
+`daysOfWeek` uses the same day numbers as today. `PATCH …/schedules/user/device/{scheduleId}` takes the same fields, and an edit applies on every lock and to every person the schedule is assigned to.
+
+**Lock firmware.** Several sections, more than two times a day, and `exclusive` need lock firmware that supports them. A lock on older firmware takes only the simple form: one section and one `allow` and one `deny` time, as today. **Assigning any other schedule to such a lock is refused** with `400`, and nothing is changed on the lock. How to tell which form a lock takes before assigning is listed in [Still to be confirmed](pending.md).
+
 ### `schedules/user/assign`
 
 The request is unchanged. Two rules are new:
 
 - **The person must have a credential on the lock first.** Otherwise the call fails with `400 "No credentials are bound to this access point for this user"`.
-- **One schedule per person per lock.** Assigning a second schedule to the same person on the same lock replaces the first. Different locks can carry different schedules, or share the same `scheduleId`.
+- **One schedule per person per lock.** Assigning a schedule to a person on a lock where they already have one **replaces** it, including several set with [`schedules/user/composite`](#several-schedules-on-one-lock-schedulesusercomposite). Different locks can carry different schedules, or share the same `scheduleId`.
 
-The schedule applies to everything the person has on that lock, app access included, and to anything bound there later. `unassign` removes it, and leaves the person's credentials on the lock **without a time limit**, see [User Management](user-management.md#schedules).
+The schedule applies to everything the person has on that lock, app access included, and to anything bound there later. `unassign` removes **every** schedule the person has on that lock, and leaves their credentials there **without a time limit**, see [User Management](user-management.md#schedules).
+
+### Several schedules on one lock: `schedules/user/composite`
+
+New. Gives one person **several schedules on the same lock**, which the lock combines. Field names are provisional, see [Still to be confirmed](pending.md).
+
+```
+POST /permissionManagementV3/v1/organisations/{orgId}/schedules/user/composite
+```
+
+```json
+{
+  "assign": [
+    { "accessorId": 107968, "accessPointIds": [4567], "scheduleIds": [11, 12], "mergePolicy": "or" }
+  ]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `accessorId` | **One** person per entry. Send one entry per person |
+| `accessPointIds` | The locks this applies to |
+| `scheduleIds` | The **complete** list of the person's schedules on those locks. It replaces whatever they had there, one schedule or several |
+| `mergePolicy` | How the schedules combine where they overlap. `or`: access whenever **any** of them allows it. `and`: access only when **all** of them allow it. Default `or` |
+
+The same rules as `schedules/user/assign` apply: the person needs a credential on each lock first, and a schedule beyond the simple form is refused with `400` on a lock with older firmware.
+
+| To | Call |
+|---|---|
+| Add a schedule to the ones a person has on a lock | `composite` with the existing `scheduleIds` plus the new one |
+| Drop one of several | `composite` with the remaining `scheduleIds` |
+| Drop them all | `schedules/user/assign` with an `unassign` entry for that person and lock |
 
 ## Refused on the new model
 

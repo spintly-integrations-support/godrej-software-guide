@@ -67,6 +67,7 @@ markdown_extensions:
 nav:
   - Overview: index.md
   - Reading these pages: conventions.md
+  - Your requirements: requirements.md
   - Flows:
       - 1. User Onboarding: user-onboarding.md
       - 2. Lock Onboarding: lock-onboarding.md
@@ -78,6 +79,7 @@ nav:
       - 8. Notifications: notifications.md
       - 9. Profile and Account: profile-and-account.md
   - Reference:
+      - Resources and permissions: resources.md
       - Spintly API changes: api-changes.md
       - Config SDK v3: config-sdk-v3.md
       - Still to be confirmed: pending.md

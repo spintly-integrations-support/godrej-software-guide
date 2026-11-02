@@ -167,6 +167,8 @@ sequenceDiagram
 
 **A property holding a lock or a gateway cannot be deleted.** Android checks the two counts and refuses before sending. iOS sends and shows what comes back.
 
+**The deletion is confirmed on Kafka.** `resource_unalive` arrives for the site and for its network once they are gone; drop the property on your side then. See [Resources and permissions](resources.md#site-and-network).
+
 ## 5. Voice Assistants <span class="chg chg-unchanged">unchanged</span> { #5-voice-assistants data-toc-label="5. Voice Assistants" }
 
 Alexa and Google Home, linked to the **account** here and then switched on per lock in Lock Settings. Both steps are needed before a voice command reaches a lock.

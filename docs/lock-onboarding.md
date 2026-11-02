@@ -124,6 +124,9 @@ sequenceDiagram
     Note over U,K: Later, as Spintly finishes setting each resource up
     S-->>K: msgType resource_alive<br/>data { resourceId, resourceName: "organisations" }
     K-->>B: organisations.synced becomes true
+    opt Only on the first branch, where the organisation is new
+        B->>S: NEW: PATCH /permissionManagementV3/v1/organisations/{orgId}/<br/>accessSettings<br/>The access types the organisation allows, dualAuth and adminRole on
+    end
     opt Only on the first branch, where the owner still has no accessor
         B->>S: POST /credentialManagementV3/v1/accessors<br/>Create the owner's accessor
         S-->>B: CHANGED: accessorId, and a credentialId per enabled access type
@@ -142,6 +145,8 @@ sequenceDiagram
 **The accessor still waits only for the organisation.** Nothing about when you create it changes. What changes is what `addLock` in step 4 has to wait for: the **site and the network** must both be synced, so the property's `synced` flag should now mean both `resource_alive` messages have arrived.
 
 **`accessor_ready`** says the accessor now exists in that organisation and can have credentials bound. Bind nothing for an accessor before it arrives.
+
+**Set the organisation's access settings once, when it is new.** They decide which access types anyone in the organisation can use: a type turned off there is off for everyone. Turn on every type your app offers, and `dualAuth` and `adminRole`, which work for a person only when they are on for the organisation too. See [Resources and permissions](resources.md#organisation).
 
 **Admin role and dual authentication move off the lock.** Today step 4's permission call turns admin on and dual authentication off for the new lock. Both are now set **once per person, for the whole organisation**, on that person's access settings. For the owner: `adminRole` on, `dualAuth` off. You can send them in the access settings of the accessor call itself, or afterwards with the `PATCH` shown.
 
@@ -234,6 +239,8 @@ sequenceDiagram
     end
     A-->>U: Next, provisioning
 ```
+
+**A binding reaches the lock once the lock is configured.** The bindings made here stay `add_pending` until provisioning (step 5) has the lock talking to the gateway. That is why step 7 waits for `in_sync` before writing the master passcode.
 
 **The permission call is gone.** `PATCH .../accessors/{accessorId}/permissions` is refused for properties on the new model. Binding the app credential is what gives the owner the lock in the app, and binding a passcode credential is what lets step 7 write a passcode for it.
 

@@ -338,9 +338,10 @@ Voice commands can read whether a lock is locked or unlocked, read its mode, and
         B->>S: DELETE /infrastructureManagement/internal/v1/<br/>accessPoints/{accessPointId}
         Note right of S: Every credential bound to this lock<br/>is unbound from it
         A-->>U: Back to Home, with the lock gone
+        S-->>B: NEW: Kafka resource_unalive<br/>data { resourceId: accessPointId, resourceName: "access_points" }
     ```
 
-    Only the SDK member changes. Deleting the access point removes every binding on it. The person's passcodes on their other locks are separate credentials and are not affected.
+    Only the SDK member changes, and `resource_unalive` now confirms the access point is gone. **Reset before deleting**: the reset wipes every person and credential from the lock itself, and deleting the access point removes every binding on it. The person's passcodes on their other locks are separate credentials and are not affected.
 
     **If the lock cannot be reached over Bluetooth**, `remoteResetDevice(serialNumber, callback)` resets it from the cloud, through its gateway, so the phone does not need to be near it. Try `resetDevice` first; whether to fall back automatically or offer it to the user is your app's choice. If both fail, the lock is out of range and its gateway cannot reach it.
 

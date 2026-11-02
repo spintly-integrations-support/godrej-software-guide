@@ -12,7 +12,7 @@ Access is still granted **per lock**, and inviting the same person to a second l
 
 | Section | | What changes |
 |---|---|---|
-| 1. Creating the invite | <span class="chg chg-changed">changed</span> | Primary, secondary and one time: unchanged. Scheduled: bind first, then the schedule, then `passcode/generate` with a `credentialId` |
+| 1. Creating the invite | <span class="chg chg-changed">changed</span> | Primary, secondary and one time: unchanged. Scheduled: bind first, then the schedule, then `passcode/generate` with a `credentialId`. A scheduled user has one generated passcode for all their locks |
 | 2. Sharing the invite | <span class="chg chg-unchanged">unchanged</span> | |
 | 3. Accepting the invite | <span class="chg chg-changed">changed</span> | The lock goes on the accessor call, or credentials are bound. No permission call |
 | 4. Setting the passcode | <span class="chg chg-changed">changed</span> | `addUserPasscode` takes the `credentialId` bound to this lock |
@@ -133,6 +133,7 @@ Today the schedule is created and assigned first, then `passcode/generate` runs.
 
 - **A schedule only attaches to credentials that are on the lock.** Assigning a schedule to a person on a lock where they have no credential bound fails with `400 "No credentials are bound to this access point for this user"`. So the person's credentials go on the lock **first**.
 - **A generated passcode belongs to a passcode credential.** `passcode/generate` now takes the `credentialId` whose digits it sets.
+- **A scheduled user has one generated passcode for all their locks.** Their single passcode credential is bound to every lock they are scheduled on, and `passcode/generate` runs once, on the first. Unlike other users, they do not get a separate passcode per lock.
 
 ```mermaid
 sequenceDiagram
@@ -141,18 +142,18 @@ sequenceDiagram
     participant B as Binaryveda's backend
     participant S as Spintly's servers
 
-    O->>A: Date range, days of the week, and one daily time slot
+    O->>A: CHANGED: Date range, and either 24-hour access or up to 5 groups of days with up to 4 times each
     O->>A: Pick from Passcode, Fingerprint and RFID card
     A->>B: inviteUser(inviteUserInput:)<br/>userType is SCHEDULED, with scheduledUserInput attached
     alt If the person is not in this property yet
         B->>S: NEW: POST /credentialManagementV3/v1/accessors, or<br/>POST .../organisations/{orgId}/accessors/{accessorId}<br/>Carrying this lock
         S-->>B: NEW: accessorId and credentialIds, already bound to this lock
     else If they are already in it, on another lock
-        B->>S: NEW: PATCH /permissionManagementV3/v1/organisations/{orgId}/<br/>accessPoints/{accessPointId}/credential-permissions<br/>credentialsToAdd: the app credential and a new passcode credential
+        B->>S: NEW: PATCH /permissionManagementV3/v1/organisations/{orgId}/<br/>accessPoints/{accessPointId}/credential-permissions<br/>credentialsToAdd: the app credential and their existing passcode credential
     end
     B->>S: POST /permissionManagementV3/v1/organisations/{orgId}/<br/>schedules/user/device<br/>Create the schedule, or reuse one, see below
     B->>S: POST /permissionManagementV3/v1/organisations/{orgId}/<br/>schedules/user/assign<br/>This person, this lock
-    opt Passcode was granted
+    opt Passcode was granted, and this is their first scheduled lock
         B->>S: NEW: GET .../accessPoints/{accessPointId}/credential-permissions?accessorId=<br/>until the passcode credential is in_sync
         B->>S: CHANGED: POST /permissionManagementV3/v1/organisations/{orgId}/<br/>passcode/generate<br/>accessorId, size, and the passcode credentialId
         S-->>B: The passcode
@@ -160,9 +161,11 @@ sequenceDiagram
     B-->>A: inviteId
 ```
 
-**A schedule is per person, per lock.** A person can be on different schedules on different locks. On any one lock they have **one** schedule: assigning another on the same lock **replaces** it. Your **Add New Schedule**, on a lock where the person already has a schedule, becomes *edit* or *replace*.
+**A schedule can now say more.** Up to 5 sections, each a group of days (for example Monday to Wednesday, then Thursday and Friday, then the weekend) with up to 4 times, so a day can have two access windows. Or `exclusive`: 24-hour access between the start and end dates. See [Spintly API changes](api-changes.md#creating-a-schedule-schedulesuserdevice). Locks on older firmware take only the simple form you use today; assigning anything more to them is refused.
 
-**The same schedule on a second lock:** `credential/create` for a new passcode credential, bind it and the app credential to the second lock, assign the schedule there, then `passcode/generate` with the **new** `credentialId`. The second lock gets its own passcode, because a passcode is never copied between locks.
+**A person can have several schedules on one lock**, through a separate call. `schedules/user/assign` sets **one** schedule and replaces any the person has on that lock. To give them another on top, your **Add New Schedule** calls `schedules/user/composite` with the full list, the schedules they have there plus the new one, and how they combine (`mergePolicy`: any of them, or all of them). See [Spintly API changes](api-changes.md#several-schedules-on-one-lock-schedulesusercomposite). Different locks can carry different schedules.
+
+**A second lock for a scheduled user:** bind the app credential and the person's **existing** passcode credential to the second lock, then assign the schedule there. Do not call `passcode/generate` again: the passcode they already have works on the second lock too, and generating again would change it on every lock. A scheduled user cannot have a different passcode on each lock.
 
 The second lock can use the **same `scheduleId`**. Editing that schedule then changes it on both locks. See [Managing users afterwards](#6-managing-users-afterwards).
 
@@ -353,8 +356,12 @@ sequenceDiagram
         O->>A: Edit or delete the schedule
         A->>B: updateSchedule(updateScheduleInput:), or deleteSchedule(scheduleId:)
         B->>S: PATCH /permissionManagementV3/v1/organisations/{orgId}/<br/>schedules/user/device/{scheduleId}<br/>Edit it, on every lock it is on
-        B->>S: CHANGED: POST .../schedules/user/assign with unassign<br/>Drop it from this person on this lock
-        B->>S: CHANGED: PATCH .../accessPoints/{accessPointId}/credential-permissions<br/>credentialsToRemove: [{ accessorId }], unless a new schedule replaces it
+        alt If they have other schedules on this lock
+            B->>S: NEW: POST .../schedules/user/composite<br/>accessorId, this lock, the remaining scheduleIds
+        else If it was their only schedule here
+            B->>S: POST .../schedules/user/assign with unassign<br/>This person, this lock
+            B->>S: CHANGED: PATCH .../accessPoints/{accessPointId}/credential-permissions<br/>credentialsToRemove: [{ accessorId }], unless a new schedule replaces it
+        end
     end
 ```
 
@@ -368,13 +375,13 @@ sequenceDiagram
 
 **Edit** changes the schedule itself, on every lock and for every person it is assigned to. If a schedule is shared across locks, your edit screen should say which.
 
-**Dropping a schedule from one lock** is `schedules/user/assign` with an `unassign` entry for that person and that lock. `DELETE .../schedules/user/device/{scheduleId}` removes the schedule from **every** lock and person it is on, so use it only when nothing should use it any more.
+**Dropping a schedule from one lock**: if the person has others there, call `schedules/user/composite` with the ones that remain. If it is their only one, `schedules/user/assign` with an `unassign` entry for that person and that lock, which removes every schedule they have there. `DELETE .../schedules/user/device/{scheduleId}` removes the schedule from **every** lock and person it is on, so use it only when nothing should use it any more.
 
 !!! danger "A scheduled user without a schedule has unrestricted access"
 
-    Unassigning a schedule leaves the person's credentials on the lock with **no time limit**. Whenever you drop a scheduled user's schedule on a lock, **in the same flow** either remove their credentials from that lock (`credentialsToRemove: [{ accessorId }]`) or assign the schedule that replaces it. Your "drop the schedule, keep the user" action has to become one of the two.
+    Unassigning a person's **last** schedule on a lock leaves their credentials there with **no time limit**. Whenever you drop a scheduled user's last schedule on a lock, **in the same flow** either remove their credentials from that lock (`credentialsToRemove: [{ accessorId }]`) or assign the schedule that replaces it. Your "drop the schedule, keep the user" action has to become one of the two.
 
-**Removing a scheduled user** follows the same rule: remove them from the lock as above, and unassign their schedule there. Delete the schedule only if it is not shared with another lock or person.
+**Removing a scheduled user** follows the same rule: remove them from the lock as above, and unassign their schedules there. Delete the schedule only if it is not shared with another lock or person.
 
 ## Differences between the two
 

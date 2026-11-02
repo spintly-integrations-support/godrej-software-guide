@@ -47,10 +47,10 @@ Asha opens both doors from the app and with her fingerprint, but each door has i
 | Locks per property | One | Many |
 | Credentials per person | One | Many: one app credential and one fingerprint credential, plus as many passcode and card credentials as you need |
 | How access is granted | To the person, on a lock | To a **credential**, on a lock |
-| Passcodes | One per person, valid on every lock | **A fresh passcode credential for each lock.** A passcode is never copied between locks, so changing one never affects another |
+| Passcodes | One per person, valid on every lock | **A fresh passcode credential for each lock.** A passcode is never copied between locks, so changing one never affects another. Scheduled users keep one generated passcode for all their locks |
 | Sync signals | `resource_alive` for the organisation, `site_create` for the property | `resource_alive` for **every** resource: organisation, site, network and access point |
 | Admin and dual authentication | Set per lock on the permission call | Set **per person** across the organisation, on access settings |
-| Schedules | Several per person on one lock | **One per person per lock**. Different locks can carry different schedules, or share one |
+| Schedules | Several per person on one lock; one time slot on chosen days | One per person per lock with `schedules/user/assign`; several, combined by a merge policy, with the new `schedules/user/composite`. Each can have **up to 5 groups of days with up to 4 times each**, or give 24-hour access in its date range (on locks with supporting firmware). Different locks can carry different schedules |
 | Config SDK | Current release | **Config SDK v3**: the device is found by serial number, and the passcode and fingerprint members take a `credentialId` |
 
 ## Which pages change
@@ -66,6 +66,8 @@ Asha opens both doors from the app and with her fingerprint, but each door has i
 | [7. Lock Settings](lock-settings.md) | My Access, Remove Device, and the Config SDK v3 members |
 | [8. Notifications](notifications.md) | Nothing |
 | [9. Profile and Account](profile-and-account.md) | Nothing in the calls. Existing properties are moved to the new model together with you |
+
+How each item on your requirements list is met is in [Your requirements](requirements.md). Every resource, from organisation to binding, with how it is created, confirmed and removed, is in [Resources and permissions](resources.md).
 
 The new and changed Spintly endpoints are collected in [Spintly API changes](api-changes.md), and every Config SDK member that changes is mapped in [Config SDK v3](config-sdk-v3.md).
 
