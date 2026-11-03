@@ -14,17 +14,21 @@ Every Config SDK member your pages use today, and what replaces it. The OAuth SD
 
 - **The lock is found by its `serialNumber`.** Every call that talks to a device takes it first. The SDK finds the device over BLE by itself, so every explicit connect and close member goes: `scanAndConnectFingerprintDevice`, `scanAndConnectCardDevice`, `fingerprintClose`, `nfcEnrollmentClose`, `nfcEnrollmentStopScan`, `meshConfigurationClose`.
 - **Passcode and fingerprint calls take a `credentialId`**, right after the `serialNumber`. It names the credential the passcode or the finger belongs to, which is how a lock can have a passcode of its own.
-- **`initiateSdk()` runs once after `setAuthToken`.** It downloads the device feature list the other calls rely on.
+- **Sign in with `logIn(accessToken, callback)`.** It replaces `setAuthToken` and `initiateSdk()`: it saves the token and downloads the device feature list the other calls rely on, and tells you whether it worked.
 - **One call at a time.** A second call, or a call during a scan, fails with `5/26`. Start the next call from inside the previous one's callback.
 - **Errors are `domain/code`**, on `SpintlyCFServiceException`. `getRequestId()` gives the id to quote to Spintly support.
 
 ## Setup
 
-| Today | v3 |
-|---|---|
-| `getDefaultInstance(context)`, `setEnvironment`, `setAuthToken` | The same, then **`initiateSdk()`** |
+| Today | v3 | Notes |
+|---|---|---|
+| `getDefaultInstance(context)` | `getDefaultInstance(context)` | Unchanged |
+| `setEnvironment(environment, region)` | `setConfiguration(new SdkConfiguration(SpintlyEnvironment.PRODUCTION, SpintlyRegion.IN))` | Saved across restarts: call it again only when the server changes |
+| Token expires: calls fail with `9/2`, you call `setAuthToken` again and retry | `setTokenRefreshHandler(handler)`, registered on every app start before `logIn` | The SDK asks your handler for a new token (from `oauthManager.getOrCreateSession`) and re-sends the request itself |
+| `setAuthToken(token)`, then `initiateSdk()` | `logIn(accessToken, callback)` | Saves the token across restarts and downloads the device feature list. `completed` when the SDK is ready |
+| Nothing | `logOut()` on sign-out, `isLoggedIn()`, `updateAccessToken(token)` | `updateAccessToken` is for a token your app fetched on its own, for the user already signed in |
 
-A newer setup, `setConfiguration`, `setTokenRefreshHandler`, `logIn`, `logOut`, `isLoggedIn` and `updateAccessToken`, is planned and not needed yet.
+`setEnvironment`, `setAuthToken` and `initiateSdk()` still work in v3 but are **deprecated and will be removed**, so move to the new calls with the SDK upgrade. Every member is described in full in [Config SDK guide](config-sdk-guide.md), Spintly's own guide to the SDK.
 
 ## 2. Lock Onboarding
 

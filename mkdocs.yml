@@ -82,4 +82,5 @@ nav:
       - Resources and permissions: resources.md
       - Spintly API changes: api-changes.md
       - Config SDK v3: config-sdk-v3.md
+      - Config SDK guide: config-sdk-guide.md
       - Still to be confirmed: pending.md

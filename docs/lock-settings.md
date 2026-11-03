@@ -463,7 +463,7 @@ The role and menu differences on your page are unchanged. The v3 SDK removes the
 
 ## Every SDK member this flow uses
 
-Config SDK v3, Android form. All of them need `setAuthToken` and `initiateSdk()` first.
+Config SDK v3, Android form. All of them need the SDK signed in with `logIn` first, see [Config SDK v3](config-sdk-v3.md#setup).
 
 | Member | When | What it is for |
 |---|---|---|

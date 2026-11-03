@@ -131,9 +131,9 @@ All three SDKs are created and pointed at an environment before anything else ca
 
     The Config SDK environment is set again before every Config SDK call later on. iOS sets it once and leaves it.
 
-!!! note "Config SDK v3: one more call"
+!!! note "Config SDK v3: a new sign-in"
 
-    With the Config SDK v3, `initiateSdk()` runs once after `setAuthToken`, before the first call that talks to a lock. It downloads the device feature list the other v3 calls rely on. Nothing else on this page changes. See [Config SDK v3](config-sdk-v3.md#setup).
+    With the Config SDK v3, launch registers a token-refresh handler and signs in once: `setConfiguration(…)` in place of `setEnvironment`, `setTokenRefreshHandler(handler)`, then `logIn(accessToken, callback)` with the token from `oauthManager.getOrCreateSession`. `logIn` replaces `setAuthToken` and `initiateSdk()`, and the SDK fetches a new token through the handler when the old one expires, so the per-call `setEnvironment` and `setAuthToken` go. Sign out with `logOut()`. Nothing else on this page changes. See [Config SDK v3](config-sdk-v3.md#setup).
 
 ## 2. Mobile number and OTP <span class="chg chg-unchanged">unchanged</span> { #2-mobile-number-and-otp data-toc-label="2. Mobile number and OTP" }
 
@@ -575,12 +575,13 @@ iOS reaches all of these through `SpintlyHelper`, Android through `SpintlySDKMan
     | Config | SpintlyConfigurationProvider.getDefaultInstance(context) | App launch | Get the Config SDK instance |
     | Config | setEnvironment(environment, region) | App launch, and before every Config SDK call | Point it at the environment |
 
-## One thing to add at launch
-
-If you configure the **Config SDK** at launch, add one call after `setAuthToken`:
+## What changes at launch with the Config SDK v3
 
 | SDK | Member | When | What it is for |
 |---|---|---|---|
-| Config | `initiateSdk()` | Once the token is set | **New in v3.** Downloads the device feature list the other v3 calls rely on |
+| Config | `setConfiguration(SdkConfiguration)` | App launch, once (saved across restarts) | **Replaces `setEnvironment`.** Point it at the environment |
+| Config | `setTokenRefreshHandler(handler)` | Every app start, before `logIn` | **New.** The SDK asks it for a fresh token from `oauthManager.getOrCreateSession` and re-sends the request |
+| Config | `logIn(accessToken, callback)` | Once the OAuth session is ready | **Replaces `setAuthToken` + `initiateSdk()`.** Saves the token, downloads the device feature list |
+| Config | `logOut()` | When the user signs out | **New.** Clears the saved token |
 
 Everything else about the Config SDK is covered on the pages that use it: [Lock Onboarding](lock-onboarding.md), [User Management](user-management.md) and [Lock Settings](lock-settings.md).

@@ -309,7 +309,7 @@ sequenceDiagram
     U->>A: Choose and confirm a passcode
     A->>B: NEW: is this lock's passcode credential in sync yet?
     B-->>A: In sync, after polling GET .../credential-permissions?accessorId=
-    A->>C: oauthManager.getOrCreateSession, then setAuthToken
+    Note over A,C: The Config SDK is already signed in with logIn, and renews its token through the refresh handler
     A->>C: CHANGED: addUserPasscode(serialNumber, credentialId, orgId,<br/>accessorId, passcode, KeypadManagerCallback)
     C->>L: Write the passcode over BLE
     C-->>A: Done, or an error
@@ -402,8 +402,8 @@ Whichever platform sent them, your backend needs the methods **before** it binds
 
 | SDK | Member | When | What it is for |
 |---|---|---|---|
-| OAuth | `oauthManager.getOrCreateSession` | Before the passcode write | Unchanged |
-| Config | `setAuthToken(token)` | Before the passcode write | Unchanged |
+| OAuth | `oauthManager.getOrCreateSession` | Inside the Config SDK's token-refresh handler, when the SDK asks for a new token | **Changed.** No longer called before each write |
+| Config | `logIn(accessToken, callback)` | Once at launch, not before each write | **Changed.** Replaces `setAuthToken` before the write, see [Config SDK v3](config-sdk-v3.md#setup) |
 | Config | `addUserPasscode(serialNumber, credentialId, orgId, accessorId, passcode, KeypadManagerCallback)` | The invited user sets their passcode | **Changed.** Write the passcode for this lock's passcode credential |
 | Config | `performFPEnrollmentOnDevice(serialNumber, credentialId, …)` | Fingerprint, in step 5 | **Changed.** As in Lock Onboarding |
 | Config | `assignCardToAccessorWithPermission(serialNumber, …, accessPointId, CREDENTIAL_PERMISSION, …)` | RFID, in step 5 | **Changed.** As in Lock Onboarding |

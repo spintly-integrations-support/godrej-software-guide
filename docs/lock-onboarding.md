@@ -475,8 +475,7 @@ Config SDK v3, Android form. The iOS members take the same arguments in the same
 
 | SDK | Member | When | What it is for |
 |---|---|---|---|
-| Config | `getDefaultInstance(context)`, `setEnvironment(env, region)`, `setAuthToken(token)` | Before every call below | As today |
-| Config | `initiateSdk()` | Once, after `setAuthToken` | **New.** Downloads the device feature list |
+| Config | `getDefaultInstance(context)`, `setConfiguration(SdkConfiguration)`, `setTokenRefreshHandler(handler)`, `logIn(accessToken, callback)` | Once at launch, before any call below | **Changed.** Replace `setEnvironment`, `setAuthToken` and `initiateSdk()`, see [Config SDK v3](config-sdk-v3.md#setup) |
 | Config | `startConfigurableDevicesScan(SpintlySdkScanCallback)` | Scan | Start the BLE scan |
 | Config | `SpintlySdkScanCallback.onConfigurableDeviceListUpdated(Set<ScannedBleDevice>)` | Scan | How discovered devices arrive. `getSerialNumber()` can be null |
 | Config | `stopScan(callback)` | Scan | Stop the scan |
