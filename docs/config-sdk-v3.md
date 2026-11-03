@@ -2,6 +2,10 @@
 
 Every Config SDK member your pages use today, and what replaces it. The OAuth SDK and the Access SDK do not change.
 
+!!! danger "Only for properties on the new model"
+
+    Config SDK v3 works with properties created after the change. Properties that already exist stay on the old model, and their users must **stay on the app version built with today's Config SDK**: do not let them update to the version with Config SDK v3. That includes anyone with an old-model property, their own or one they were invited to. See [Profile and Account, Old and new properties](profile-and-account.md#properties-that-already-exist).
+
 !!! warning "Provisional"
 
     The v3 names below are from Spintly's Config SDK guide for the Android release `com.spintly:configurationsdkv3:0.0.0.84-7263534`. Members the guide marks **planned** or as an **open point** are marked the same way here, and may still change. They are tracked in [Still to be confirmed](pending.md). The iOS members take the same arguments in the same order as the Android ones shown.

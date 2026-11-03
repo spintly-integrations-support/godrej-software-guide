@@ -75,6 +75,10 @@ sequenceDiagram
 
 ## 1. Creating the invite <span class="chg chg-changed">changed</span> { #1-creating-the-invite data-toc-label="1. Creating the invite" }
 
+!!! warning "Invites work only within one model"
+
+    The invitee's app must match the property's model: an old-app user cannot join a new-model property, and a new-app user cannot join an old one. Check it when the invite is sent and when it is accepted, and refuse it otherwise. This applies to primary, secondary and scheduled users; one time users are unaffected. See [Profile and Account, Old and new properties](profile-and-account.md#properties-that-already-exist).
+
 The inviter opens **Users** on the Lock Control Panel, picks a tab, and fills in a name and a mobile number. Everything after that depends on the kind of user.
 
 Only a mobile number is collected. No email address is used anywhere in this flow.
@@ -161,7 +165,7 @@ sequenceDiagram
     B-->>A: inviteId
 ```
 
-**A schedule can now say more.** Up to 5 sections, each a group of days (for example Monday to Wednesday, then Thursday and Friday, then the weekend) with up to 4 times, so a day can have two access windows. Or `exclusive`: 24-hour access between the start and end dates. See [Spintly API changes](api-changes.md#creating-a-schedule-schedulesuserdevice). Locks on older firmware take only the simple form you use today; assigning anything more to them is refused.
+**A schedule can now say more.** Up to 5 sections, each a group of days (for example Monday to Wednesday, then Thursday and Friday, then the weekend) with up to 4 times, so a day can have two access windows. Or `exclusive`: 24-hour access between the start and end dates. See [Spintly API changes](api-changes.md#creating-a-schedule-schedulesuserdevice). The times are set by each section's `allow` and `deny` triggers; there is no separate time range. Locks on older firmware take only one section with one `allow` and one `deny`, the single window you set today; assigning anything more to them is refused. Use the lock's `firmwareVersion` to decide what your schedule screen offers.
 
 **A person can have several schedules on one lock**, through a separate call. `schedules/user/assign` sets **one** schedule and replaces any the person has on that lock. To give them another on top, your **Add New Schedule** calls `schedules/user/composite` with the full list, the schedules they have there plus the new one, and how they combine (`mergePolicy`: any of them, or all of them). See [Spintly API changes](api-changes.md#several-schedules-on-one-lock-schedulesusercomposite). Different locks can carry different schedules.
 

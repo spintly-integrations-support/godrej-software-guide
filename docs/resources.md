@@ -8,6 +8,8 @@ Every Spintly resource your backend creates, what it is ready on, the rules that
 |---|---|---|
 | The account's first property | **Organisation**, with its first **site** and **network** | `createSite`, first branch ([Lock Onboarding, step 1](lock-onboarding.md#1-choose-a-property)) |
 | Every further property | A **site** and its **network** in the same organisation | `createSite`, second branch |
+
+The model, old or new, belongs to the organisation, so every property of an account shares it. See [Profile and Account, Old and new properties](profile-and-account.md#properties-that-already-exist).
 | Wi-Fi gateway | **Gateway**, in a network | `createGateway` ([Lock Settings, The Wi-Fi Gateway](lock-settings.md#the-wi-fi-gateway)) |
 | Lock | **Access point**, in a network | `addLock` ([Lock Onboarding, step 4](lock-onboarding.md#4-customise-the-lock)) |
 | Person | **Accessor** | Accepting an invite ([User Management](user-management.md)) |

@@ -51,7 +51,7 @@ Asha opens both doors from the app and with her fingerprint, but each door has i
 | Sync signals | `resource_alive` for the organisation, `site_create` for the property | `resource_alive` for **every** resource: organisation, site, network and access point |
 | Admin and dual authentication | Set per lock on the permission call | Set **per person** across the organisation, on access settings |
 | Schedules | Several per person on one lock; one time slot on chosen days | One per person per lock with `schedules/user/assign`; several, combined by a merge policy, with the new `schedules/user/composite`. Each can have **up to 5 groups of days with up to 4 times each**, or give 24-hour access in its date range (on locks with supporting firmware). Different locks can carry different schedules |
-| Config SDK | Current release | **Config SDK v3**: the device is found by serial number, and the passcode and fingerprint members take a `credentialId` |
+| Config SDK | Current release | **Config SDK v3** for properties on the new model: the device is found by serial number, and the passcode and fingerprint members take a `credentialId`. Properties that already exist keep today's SDK and app version |
 
 ## Which pages change
 
@@ -65,7 +65,7 @@ Asha opens both doors from the app and with her fingerprint, but each door has i
 | [6. Activity Trail](activity-trail.md) | Nothing |
 | [7. Lock Settings](lock-settings.md) | My Access, Remove Device, and the Config SDK v3 members |
 | [8. Notifications](notifications.md) | Nothing |
-| [9. Profile and Account](profile-and-account.md) | Nothing in the calls. Existing properties are moved to the new model together with you |
+| [9. Profile and Account](profile-and-account.md) | Nothing in the calls. Old and new properties side by side: the model belongs to the account, old-model users stay on today's app, and invites work only within one model |
 
 How each item on your requirements list is met is in [Your requirements](requirements.md). Every resource, from organisation to binding, with how it is created, confirmed and removed, is in [Resources and permissions](resources.md).
 

@@ -316,8 +316,6 @@ They can also be sent in the access settings of the accessor create and add-to-o
 {
   "type": "success",
   "message": {
-    "orgId": 123,
-    "accessorId": 107968,
     "credentials": [
       { "credentialType": "fingerprint", "credentialId": 44389500 }
     ]
@@ -348,7 +346,7 @@ Generate once, on the person's first lock, and bind the same passcode credential
 
 ### Creating a schedule: `schedules/user/device`
 
-Schedules can now do more than one date range, one set of days and one time slot. Field names are provisional, see [Still to be confirmed](pending.md).
+Schedules can now do more than one date range, one set of days and one time slot.
 
 ```
 POST /permissionManagementV3/v1/organisations/{orgId}/schedules/user/device
@@ -361,6 +359,7 @@ POST /permissionManagementV3/v1/organisations/{orgId}/schedules/user/device
   "dateRange": { "start": "2026-11-01", "end": "2026-12-31" },
   "sections": [
     {
+      "repeatType": "weekly",
       "daysOfWeek": [1, 2, 3],
       "triggers": [
         { "state": "allow", "time": "09:00" },
@@ -370,6 +369,7 @@ POST /permissionManagementV3/v1/organisations/{orgId}/schedules/user/device
       ]
     },
     {
+      "repeatType": "weekly",
       "daysOfWeek": [4, 5],
       "triggers": [
         { "state": "allow", "time": "10:00" },
@@ -384,12 +384,14 @@ POST /permissionManagementV3/v1/organisations/{orgId}/schedules/user/device
 |---|---|
 | `scheduleType` | `per_day`: access follows the sections' times. `exclusive`: access **24 hours a day** within `dateRange`; no `sections` |
 | `dateRange` | The schedule works only between `start` and `end` |
-| `sections` | Up to **5**. Each covers some days of the week, and a day belongs to at most one section. A day in no section has no access |
+| `sections` | Up to **5**, in the same format as gateway managed schedules, with `repeatType: "weekly"`. Each covers some days of the week, and a day belongs to at most one section. A day in no section has no access |
 | `triggers` | Up to **4** per section, in time order. `allow` opens access from that time, `deny` closes it. Two pairs give two windows in a day |
 
-`daysOfWeek` uses the same day numbers as today. `PATCH …/schedules/user/device/{scheduleId}` takes the same fields, and an edit applies on every lock and to every person the schedule is assigned to.
+`daysOfWeek` uses the same day numbers as today. **The times come only from the triggers**: there is no `timeRange` any more. Today's single window is one section with one `allow` and one `deny`.
 
-**Lock firmware.** Several sections, more than two times a day, and `exclusive` need lock firmware that supports them. A lock on older firmware takes only the simple form: one section and one `allow` and one `deny` time, as today. **Assigning any other schedule to such a lock is refused** with `400`, and nothing is changed on the lock. How to tell which form a lock takes before assigning is listed in [Still to be confirmed](pending.md).
+**Editing** with `PATCH …/schedules/user/device/{scheduleId}` works as for gateway managed schedules: `sectionsToAdd`, `sectionsToUpdate` (each with the section `id` from the `GET`) and `sectionsToDelete` (section ids), plus `name`, `dateRange` and `scheduleType`. An edit applies on every lock and to every person the schedule is assigned to.
+
+**Lock firmware.** Several sections, more than two times a day, and `exclusive` need lock firmware that supports them. A lock on older firmware takes only **one section with one `allow` and one `deny`**, the single window you set today. **Assigning any other schedule to such a lock is refused** with `400`, and nothing is changed on the lock. **Check the lock's `firmwareVersion` before offering more**: the versions that support advanced schedules will be shared with you, see [Still to be confirmed](pending.md).
 
 ### `schedules/user/assign`
 
@@ -402,7 +404,7 @@ The schedule applies to everything the person has on that lock, app access inclu
 
 ### Several schedules on one lock: `schedules/user/composite`
 
-New. Gives one person **several schedules on the same lock**, which the lock combines. Field names are provisional, see [Still to be confirmed](pending.md).
+New. Gives one person **several schedules on the same lock**, which the lock combines.
 
 ```
 POST /permissionManagementV3/v1/organisations/{orgId}/schedules/user/composite
@@ -423,7 +425,7 @@ POST /permissionManagementV3/v1/organisations/{orgId}/schedules/user/composite
 | `scheduleIds` | The **complete** list of the person's schedules on those locks. It replaces whatever they had there, one schedule or several |
 | `mergePolicy` | How the schedules combine where they overlap. `or`: access whenever **any** of them allows it. `and`: access only when **all** of them allow it. Default `or` |
 
-The same rules as `schedules/user/assign` apply: the person needs a credential on each lock first, and a schedule beyond the simple form is refused with `400` on a lock with older firmware.
+The same rules as `schedules/user/assign` apply: the person needs a credential on each lock first, and a schedule beyond one section with one `allow` and one `deny` is refused with `400` on a lock with older firmware.
 
 | To | Call |
 |---|---|
@@ -438,4 +440,4 @@ The same rules as `schedules/user/assign` apply: the person needs a credential o
 | `PATCH …/accessors/{accessorId}/permissions` | `accessPointsToAdd` on the accessor call, or `PATCH …/accessPoints/{accessPointId}/credential-permissions` |
 | `PATCH …/accessPoints/{accessPointId}/permissions` | `PATCH …/accessPoints/{accessPointId}/credential-permissions` |
 
-Both answer `400` for a property on the new model. Properties not yet moved keep using them, see [Profile and Account](profile-and-account.md#properties-that-already-exist).
+Both answer `400` for a property on the new model. Properties that existed before the change stay on the old model and keep using them, see [Profile and Account](profile-and-account.md#properties-that-already-exist).

@@ -140,6 +140,8 @@ sequenceDiagram
     B->>S: NEW: PATCH /permissionManagementV3/v1/organisations/{orgId}/<br/>accessor/{accessorId}/accessSettings<br/>adminRole on, dualAuth off, once per owner
 ```
 
+**The first branch always creates a new-model account.** The second adds the property to the account's existing organisation, so it takes that account's model: a new property for an account from before the change is **old model**, with one lock, on today's calls and today's app. See [Profile and Account, Old and new properties](profile-and-account.md#properties-that-already-exist).
+
 **Store every `credentialId` the accessor call returns.** It returns one credential per access type enabled for the owner: the app credential, a passcode credential, a fingerprint credential, and so on. You will bind them to the lock in step 4, and the passcode one is what step 7 writes. If one is lost, read it back with `GET .../accessors/{accessorId}/credential` (see [Spintly API changes](api-changes.md#reading-a-persons-credentials)).
 
 **The accessor still waits only for the organisation.** Nothing about when you create it changes. What changes is what `addLock` in step 4 has to wait for: the **site and the network** must both be synced, so the property's `synced` flag should now mean both `resource_alive` messages have arrived.

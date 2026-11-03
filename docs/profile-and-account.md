@@ -4,7 +4,7 @@
 
 !!! success "Unchanged"
 
-    Nothing in the calls changes. See [Properties that already exist](#properties-that-already-exist) at the end for how existing properties move to the new model.
+    Nothing in the calls changes. Properties that already exist stay on the model they use today, and old and new properties run side by side; see [Old and new properties](#properties-that-already-exist) at the end.
 
     The flow is shown in full, as it runs today, so the page reads end to end on its own.
 
@@ -294,16 +294,51 @@ Sign Out ends much the same way, with `logOut` in place of `deleteUserAccount` a
 
 Android calls neither. Nothing else on this page, on either platform, touches an SDK at all.
 
-## Properties created from now on
+## Old and new properties { #properties-that-already-exist }
 
-A property created after the change is on the new model from the start. Nothing in the create call changes. The only difference you will see is the one in [Lock Onboarding, step 1](lock-onboarding.md#1-choose-a-property): the **site** and the **network** each send their own `resource_alive`, and a property is usable once both have arrived.
+Old and new properties run side by side. Nothing already onboarded is moved: properties from before the change **stay on the model they use today**, with no new credentials, no new passcodes and nothing to re-enrol.
 
-## Properties that already exist
+### The model belongs to the account
 
-Properties onboarded before the change stay on the one-lock model until they are **moved**. Moving a property gives every person in it **new credentials** for the access methods they have, replacing the old ones on the locks. How a move runs, what it means for each person's passcode, fingerprints and cards, and what your app has to do, is being designed separately and will be agreed with you before any property is moved.
+Each account has one organisation at Spintly, created with its first property, and every further property is added to it ([Lock Onboarding, step 1](lock-onboarding.md#1-choose-a-property)). The model is set on the organisation when it is created, so **every property of an account shares one model**:
 
-Until a property has been moved:
+| Account | Its properties |
+|---|---|
+| Had a property before the change | **Old model**, including every property it adds later. One lock per property. Today's calls |
+| Its first property is created after the change | **New model** for all of them. The calls on these pages |
 
-- it keeps working exactly as today, on today's calls
-- the new calls on these pages are refused for it
-- a second lock should not be added to it
+Keep a **model flag per account** and pick the set of calls from it.
+
+### Which app a user is on
+
+The app decides which model a user works with, because each app version carries one Config SDK:
+
+| User | App |
+|---|---|
+| Has an old-model property, their own or one they were invited to | The app version built with **today's Config SDK**. Do not let them update to the version with [Config SDK v3](config-sdk-v3.md) |
+| Everyone else, including new installs | The app with **Config SDK v3** |
+
+A user on the old app who has no property yet and creates one gets a **new-model** account, so move them to the new app before they create it.
+
+### Invites
+
+**An invite works only within one model**: the invitee's app must match the property's model. Check it when the invite is sent and when it is accepted, and refuse it otherwise with a message, for example asking a new-app user to use an account on the same model:
+
+- an old-app user cannot join a new-model property
+- a new-app user cannot join an old-model property
+
+This applies to **primary, secondary and scheduled** users: each of them unlocks with the Access SDK, but sets their own passcode, fingerprint or card with the Config SDK, which must match the property. **One time users are unaffected**: they have no account at Spintly and use no SDK.
+
+### Roles
+
+Owner, primary, secondary, scheduled and one time keep their meaning on both models. What each does follows the **property's** model: on an old property, inviting, managing users and Lock Settings use today's calls and today's Config SDK; on a new property, the calls on these pages. The rules above make sure everyone acting on a property is on the matching app.
+
+### On an old-model property
+
+- everything keeps working exactly as today, on today's calls, including the permission calls that are refused for new properties
+- the new calls on these pages (credential binding, `credential/create`, the binding reads) are refused
+- each property keeps one lock: a second lock should not be added to it
+
+### On a new-model property
+
+Nothing in the create call changes. The only difference you will see is the one in [Lock Onboarding, step 1](lock-onboarding.md#1-choose-a-property): the **site** and the **network** each send their own `resource_alive`, and a property is usable once both have arrived.
